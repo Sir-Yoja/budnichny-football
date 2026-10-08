@@ -1,80 +1,32 @@
-@import "tailwindcss";
-
-@layer base {
-  body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-
-  h1, h2, h3, h4, .font-heading {
-    font-family: 'Unbounded', 'Inter', sans-serif;
-  }
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  height: 100%;
 }
 
-/* Custom mobile scrollbar & smooth scrolling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+html,
+body {
+  overflow: hidden;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+body {
+  background: #090c10;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(16, 185, 129, 0.3);
-  border-radius: 9999px;
+.legacy-shell {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.6);
-}
-
-/* Subtle Pitch Pattern */
-.bg-pitch-grid {
-  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-.bg-pitch-stripes {
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(16, 185, 129, 0.04) 0px,
-    rgba(16, 185, 129, 0.04) 40px,
-    rgba(16, 185, 129, 0.08) 40px,
-    rgba(16, 185, 129, 0.08) 80px
-  );
-}
-
-/* Glassmorphism utility */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.glass-card {
-  background: rgba(30, 41, 59, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-/* Glow effects */
-.glow-emerald {
-  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.4);
-}
-
-.glow-emerald-sm {
-  box-shadow: 0 0 12px -2px rgba(16, 185, 129, 0.3);
-}
-
-/* Prevent text highlight on rapid mobile tap buttons */
-.no-select {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
+.legacy-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
