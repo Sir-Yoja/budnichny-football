@@ -292,6 +292,10 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .quick-backdrop{z-index:1200!important}
 .quick-card{width:min(1180px,calc(100vw - 36px))!important;max-height:calc(100dvh - 36px)!important;overflow-y:auto!important;overflow-x:hidden!important}
 .quick-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0 14px}
+.quick-create-game{margin:12px 0 16px;padding:14px;border:1px solid rgba(207,184,66,.28);border-radius:12px;background:rgba(207,184,66,.045)}
+.quick-create-game h3{margin:0 0 8px;color:#f0c74d;font-size:15px}
+.quick-create-game .quick-selects{margin:8px 0 12px}
+.quick-create-game small{display:block;margin-top:8px;color:#91a1ad}
 .quick-selects label{display:flex;flex-direction:column;gap:7px;color:#a8bac4;font-size:13px;font-weight:700}
 .quick-selects select,.quick-score input,.quick-player input{box-sizing:border-box;border:1px solid #293944;background:#091219;color:#edf3f6;border-radius:10px;font:700 15px 'Manrope',Arial,sans-serif;outline:none}
 .quick-selects select{height:46px;padding:9px 12px}
@@ -301,7 +305,7 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .quick-rosters{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .quick-roster{border:1px solid #293944;border-radius:14px;background:rgba(8,17,24,.7);overflow:hidden}.quick-team-title{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #293944;background:#10232e}.quick-team-title b{font-size:16px}.quick-team-title small{margin-left:auto;color:#7f929d;font-size:11px}.quick-player{display:grid;grid-template-columns:minmax(130px,1fr) repeat(5,44px) 90px 48px;gap:5px;align-items:center;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.06)}.quick-player:last-child{border-bottom:0}.quick-player-name{min-width:0}.quick-player-name b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.quick-player-name small{display:block;color:#788c98;font-size:10px;margin-top:3px}.quick-player label{display:grid;grid-template-columns:20px 1fr;align-items:center;gap:3px;min-width:0;color:#8396a1;font-size:9px}.quick-player label input{grid-column:1/-1;width:100%;height:36px;padding:6px 5px;text-align:center;font-size:14px}.quick-gk{height:36px;display:flex;align-items:center;justify-content:center;gap:4px;padding:4px 5px;border:1px solid #314651;border-radius:9px;background:#0b141c;color:#c8d4da;font:800 10px 'Manrope',Arial,sans-serif;cursor:pointer}.quick-gk.active{border-color:#cfb842;background:rgba(207,184,66,.11);color:#f0d763}.quick-rating{color:#cfb842;font-size:17px;text-align:center}.quick-empty{padding:18px;color:#7e919c;font-size:13px}.quick-footer{position:sticky;bottom:0;display:flex;align-items:center;gap:14px;margin-top:14px;padding:12px 0 0;background:linear-gradient(180deg,rgba(11,23,32,.75),#0b1720 30%);border-top:1px solid #293944}.quick-footer span{flex:1;color:#8ea1ac;font-size:12px;line-height:1.4}.quick-footer .primary-btn{min-height:46px;white-space:nowrap}
 @media(max-width:900px){.quick-rosters{grid-template-columns:1fr}.quick-player{grid-template-columns:minmax(140px,1fr) repeat(5,50px) 96px 48px}}
-@media(max-width:600px){.quick-card{width:calc(100vw - 12px)!important;max-height:calc(100dvh - 12px)!important;border-radius:14px!important;padding:14px 10px!important}.quick-selects{grid-template-columns:1fr;margin:14px 0}.quick-score{grid-template-columns:1fr 24px 1fr;gap:6px;padding:10px}.quick-score>div{grid-template-columns:1fr 58px;gap:6px}.quick-score>div:last-child{grid-template-columns:58px 1fr}.quick-score b{font-size:13px}.quick-score input{height:40px}.quick-player{grid-template-columns:minmax(125px,1fr) repeat(3,48px);gap:6px}.quick-player label:nth-of-type(4),.quick-player label:nth-of-type(5){display:none}.quick-gk{grid-column:2/4;height:38px}.quick-rating{grid-column:4;text-align:center}.quick-player label input{height:34px}.quick-footer{flex-direction:column;align-items:stretch}.quick-footer .primary-btn{width:100%}}
+@media(max-width:600px){.quick-card{width:calc(100vw - 12px)!important;max-height:calc(100dvh - 12px)!important;border-radius:14px!important;padding:14px 10px!important}.quick-selects{grid-template-columns:1fr;margin:14px 0}.quick-score{grid-template-columns:minmax(0,1fr) 20px minmax(0,1fr);gap:5px;padding:9px}.quick-score>div{grid-template-columns:minmax(0,1fr) 48px;gap:5px}.quick-score>div:last-child{grid-template-columns:48px minmax(0,1fr)}.quick-score b{font-size:12px;overflow-wrap:anywhere}.quick-score input{height:40px}.quick-player{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px 8px}.quick-player-name{grid-column:1/-1}.quick-player-name b{font-size:14px;white-space:normal;overflow-wrap:anywhere}.quick-player label{grid-template-columns:20px minmax(0,1fr);font-size:10px}.quick-player label input{grid-column:1/-1;height:36px}.quick-gk{grid-column:1/3;height:38px;font-size:11px}.quick-rating{grid-column:3;text-align:center;align-self:center}.quick-footer{flex-direction:column;align-items:stretch}.quick-footer .primary-btn{width:100%}}
 
 .primary-btn:disabled{opacity:.55!important;cursor:wait!important;transform:none!important}.modal-card form{display:grid;gap:14px}.modal-card label{display:grid;gap:7px}.modal-card input{width:100%;box-sizing:border-box}.modal-card .error{border:1px solid rgba(255,92,92,.35);background:rgba(255,92,92,.08);color:#ffb1b1;padding:10px 12px;border-radius:10px;font-size:14px;line-height:1.35}
 
@@ -319,3 +323,14 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .day-player-team-head h4{font-size:15px}
  .day-player-team .day-stats-table{min-width:680px}
 }
+
+/* Быстрое заполнение: общий рейтинг выбранного игрового дня */
+.quick-day-rating{margin:16px 0 20px;padding:14px 16px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(255,255,255,.025)}
+.quick-day-rating h3{margin:0 0 4px;font-size:16px;color:#f0c74d}
+.quick-day-rating>p{margin:0 0 10px;font-size:12px;color:#91a1ad}
+.quick-day-rating-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;max-height:190px;overflow:auto}
+.quick-day-rating-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.035)}
+.quick-day-rating-list span{min-width:0;font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.quick-day-rating-list small{display:block;font-size:11px;font-weight:400;color:#91a1ad}
+.quick-day-rating-list b{color:#f0c74d;font-variant-numeric:tabular-nums}
+@media(max-width:640px){.quick-day-rating-list{grid-template-columns:1fr}.quick-day-rating{padding:12px}}
