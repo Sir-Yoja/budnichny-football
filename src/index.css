@@ -334,3 +334,31 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .quick-day-rating-list small{display:block;font-size:11px;font-weight:400;color:#91a1ad}
 .quick-day-rating-list b{color:#f0c74d;font-variant-numeric:tabular-nums}
 @media(max-width:640px){.quick-day-rating-list{grid-template-columns:1fr}.quick-day-rating{padding:12px}}
+
+/* Рейтинг: заголовки и числа строго выровнены по столбцам */
+.rating-head-icons>span:nth-child(1),
+.rating-head-icons>span:nth-child(3),
+.rating-head-icons>span:nth-child(4),
+.rating-row-11>.rank,
+.rating-row-11>span:nth-child(3),
+.rating-row-11>span:nth-child(n+4),
+.rating-row-11>strong,
+.rating-row-11>.rating-value{ text-align:center; font-variant-numeric:tabular-nums; }
+.rating-row-11>.player-name{ text-align:left; }
+.rating-head-icons>span:nth-child(2){ text-align:left; }
+.rating-head-icons .rating-col-icon{ justify-self:stretch; width:100%; }
+
+/* Confirmed rating: keep one- and two-day participants outside the main ranking. */
+.rating-group-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:26px 0 8px;padding:14px 17px;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(13,29,40,.72)}
+.rating-group-head h3{margin:0;font-size:18px;color:#e9eef5}
+.rating-group-head p{margin:5px 0 0;color:#91a1ad;font-size:12px;line-height:1.45}
+.rating-group-count{flex:0 0 auto;color:#cfb842;font-size:12px;font-weight:800;white-space:nowrap}
+.rating-group-preliminary{margin-top:30px;background:rgba(72,62,25,.18)}
+.rating-group-preliminary .rating-group-count{color:#d7c878}
+.rating-group-inactive .rating-group-count{color:#91a1ad}
+.rating-empty-state{padding:22px 16px;color:#91a1ad;font-size:13px}
+
+.profile-rating-status{grid-column:2;color:#91a1ad;font-size:10px;font-style:normal;line-height:1.35;margin-top:3px}
+.profile-rating-status.confirmed{color:#89d8a8}
+.profile-rating-status.preliminary{color:#d7c878}
+.rating-group-head{scroll-margin-top:80px}
