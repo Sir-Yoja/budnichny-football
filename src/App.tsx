@@ -332,12 +332,12 @@ export default function App(){
   const rating=useMemo(()=>players.map(p=>{
     const w=getEngine();
     const totals=w?.playerTotals?.(p);
-    const entries=dayPlayers.filter((x:any)=>Number(x.player_id)===Number(p.id));
+    const entries=dayPlayers.filter((x:any)=>String(x.player_id)===String(p.id));
     // Count distinct played dates, not match count or duplicate stat rows.
     const playedDays=new Set(entries.map((x:any)=>String(x.game_day_id))).size;
     const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays};
     return {p,s};
-  }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,ready]);
+  }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,games,teams,days,ready]);
 
   return <div className="app" style={legacyBackground ? {backgroundImage: legacyBackground} : undefined}>
     <iframe ref={frame} onLoad={onLoad} className={dayModal!==null ? "engine editor-visible" : "engine"} title="data-engine" srcDoc={legacyHtml}/>
