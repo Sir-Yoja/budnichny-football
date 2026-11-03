@@ -402,3 +402,18 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   .hero-public { padding: 24px 8px 20px !important; }
   .day-card-new { padding: 12px !important; }
 }
+
+/* Редактор игрового дня: составы сгруппированы по командам */
+.editor-roster-teams{display:grid;gap:22px}
+.editor-roster-team{min-width:0;padding:18px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(6,19,27,.42)}
+.editor-roster-team-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.editor-roster-team-head h4{display:flex;align-items:center;gap:10px;margin:0 0 5px;font-size:19px}
+.editor-roster-team-head small{color:var(--muted)}
+.editor-team-dot{display:inline-block;flex:0 0 13px;width:13px;height:13px;border:1px solid rgba(255,255,255,.35);border-radius:50%}
+.editor-add-player-label{display:block;margin-bottom:7px;color:#aebdc6;font-size:13px;font-weight:700}
+.editor-add-player-select{display:block;width:100%;max-width:480px;min-height:46px;margin-bottom:16px;padding:10px 12px;background:#102633;color:#f4f7fa;border:1px solid rgba(207,184,66,.45);border-radius:10px;font:600 14px Manrope,Arial,sans-serif}
+.editor-roster-empty{padding:20px 12px;border:1px dashed rgba(255,255,255,.16);border-radius:10px;color:var(--muted);font-size:13px}
+.editor-remove-player{min-height:36px;padding:7px 11px;border:1px solid rgba(210,125,125,.4);border-radius:9px;background:rgba(120,38,38,.14);color:#f0b8b8;font:700 12px Manrope,Arial,sans-serif;cursor:pointer}
+.editor-remove-player:hover{background:rgba(120,38,38,.28)}
+.editor-roster-team .editor-player{min-width:0}
+@media(max-width:600px){.editor-roster-team{padding:12px}.editor-roster-team-head h4{font-size:16px}.editor-roster-team .editor-player-head{gap:10px;flex-wrap:wrap}.editor-remove-player{font-size:11px}}

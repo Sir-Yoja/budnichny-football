@@ -592,6 +592,32 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
   if(!day) return null;
   const icon=(name:string,size=24)=>icons[name]?<img className="editor-ui-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="editor-ui-fallback">•</span>;
   const updatePlayer=(id:number,patch:any)=>setPlayerDraft(prev=>prev.map(x=>x.playerId===id?{...x,...patch}:x));
+  const addPlayerToTeam=(teamId:number,playerId:number)=>{
+    if(!Number.isSafeInteger(playerId)||!players.some(p=>Number(p.id)===playerId))return;
+    setPlayerDraft(prev=>prev.map(x=>Number(x.playerId)===playerId?{...x,teamId}:x));
+  };
+  const removePlayerFromDay=(playerId:number)=>{
+    setPlayerDraft(prev=>prev.map(x=>Number(x.playerId)===playerId?{...x,teamId:''}:x));
+  };
+  const playerStats=(p:any,x:any)=>{
+    const gp=Number(x.goals||0)+Number(x.assists||0);
+    return <div className="editor-player" key={p.id}>
+      <div className="editor-player-head">
+        <div className="editor-player-name">{p.name}<small>{p.position||'Позиция не указана'}{p.is_goalkeeper?' · Вратарь':''}</small></div>
+        <button type="button" className="editor-remove-player" onClick={()=>removePlayerFromDay(p.id)} aria-label={`Убрать ${p.name} из состава`}>Убрать из состава ×</button>
+      </div>
+      <div className="editor-player-stats">
+        <label>{icon('goal',22)}<span>Забил</span><input type="number" min="0" step="1" value={x.goals} onChange={e=>updatePlayer(p.id,{goals:e.target.value===''?'':Number(e.target.value)})}/></label>
+        <label>{icon('pass',22)}<span>Пас</span><input type="number" min="0" step="1" value={x.assists} onChange={e=>updatePlayer(p.id,{assists:e.target.value===''?'':Number(e.target.value)})}/></label>
+        <div className="editor-stat-read"><span>{icon('gp',22)} Г+П</span><b>{gp}</b></div>
+        <label>{icon('own',22)}<span>Автогол</span><input type="number" min="0" step="1" value={x.ownGoals} onChange={e=>updatePlayer(p.id,{ownGoals:e.target.value===''?'':Number(e.target.value)})}/></label>
+        <label>{icon('saves',22)}<span>Сейвы</span><input type="number" min="0" step="1" value={x.saves} onChange={e=>updatePlayer(p.id,{saves:e.target.value===''?'':Number(e.target.value)})}/></label>
+        <label>{icon('conceded',22)}<span>Пропустил</span><input type="number" min="0" step="1" value={x.conceded} onChange={e=>updatePlayer(p.id,{conceded:e.target.value===''?'':Number(e.target.value)})}/></label>
+        <button type="button" className={x.goalkeeper?'gk-button active':'gk-button'} onClick={()=>updatePlayer(p.id,{goalkeeper:!x.goalkeeper})}>{icon('saves',22)} <span>В воротах</span></button>
+        <div className="editor-stat-read rating"><span>{icon('rating',22)} Рейтинг дня</span><b>{ratingFor(x).toFixed(1)}</b></div>
+      </div>
+    </div>;
+  };
   const ratingFor=(x:any)=>{ if(!x.teamId || !engine?.dayRatingForEntry) return 5; const value=Number(engine.dayRatingForEntry({game_day_id:dayId,team_id:Number(x.teamId),player_id:Number(x.playerId),goals:Number(x.goals)||0,assists:Number(x.assists)||0,conceded:Number(x.conceded)||0,own_goals:Number(x.ownGoals)||0,saves:Number(x.saves)||0,goalkeeper:!!x.goalkeeper},gameDraft)); return Number.isFinite(value)?value:5; };
   const save=async()=>{
     if(!engine?.sb){setError('Нет подключения к базе данных.');return;}
@@ -698,7 +724,30 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       <section className="editor-section"><div className="editor-section-head"><div><h3>📷 Картинка составов</h3><p>Можно оставить текущую, заменить её или удалить.</p></div></div>{day.image_url?<img className="editor-image-preview" src={day.image_url} alt="Составы команд"/>:<div className="editor-image-empty">Картинка составов не загружена.</div>}<div className="editor-image-actions"><label className="file-btn">Выбрать файл<input type="file" accept="image/*" onChange={e=>setImageFile(e.target.files?.[0]||null)}/></label>{day.image_url&&<label className="editor-check"><input type="checkbox" checked={removeImage} onChange={e=>setRemoveImage(e.target.checked)}/> Удалить текущую</label>} {imageFile&&<span className="muted">{imageFile.name}</span>}</div></section>
       <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('team',26)} Команды</h3><p>Название и цвет сохраняются как раньше.</p></div></div><div className="editor-team-grid">{teamDraft.map((t,i)=><div className="editor-team-card" key={t.id}><span>Команда {i+1}</span><select value={t.name||'Пунктуальные'} onChange={e=>{const palette:Record<string,string>={'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'};const name=e.target.value;setTeamDraft(prev=>prev.map(x=>x.id===t.id?{...x,name,color:palette[name]}:x))}}><option value="Пунктуальные">Пунктуальные</option><option value="Сообразительные">Сообразительные</option><option value="Красивые">Красивые</option><option value="Стильные">Стильные</option></select><input className="editor-color" type="color" value={({'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'} as Record<string,string>)[t.name]||t.color||'#ffffff'} disabled aria-label="Цвет команды"/></div>)}</div></section>
       <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('goal',26)} Игры</h3><p>Матчи и счёт.</p></div><button className="editor-secondary-btn" onClick={addGame}>+ Добавить игру</button></div><div className="editor-games">{gameDraft.map((g,i)=><div className="editor-game-row" key={i}><select value={g.team_a_id} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,team_a_id:Number(e.target.value)}:x))}>{teamDraft.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><input type="number" min="0" step="1" value={g.score_a??0} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,score_a:e.target.value===''?'':Number(e.target.value)}:x))}/><span>:</span><input type="number" min="0" step="1" value={g.score_b??0} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,score_b:e.target.value===''?'':Number(e.target.value)}:x))}/><select value={g.team_b_id} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,team_b_id:Number(e.target.value)}:x))}>{teamDraft.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><button type="button" className="editor-delete-btn" onClick={()=>setGameDraft(prev=>prev.filter((_,j)=>j!==i))} aria-label={`Удалить игру ${i+1}`} title="Удалить эту игру">🗑️</button></div>)}</div></section>
-      <section className="editor-section"><div className="editor-section-head"><div><h3>👥 Состав и статистика игроков</h3><p>Все игроки из базы отображаются здесь. Выбери команду для участника.</p></div></div><div className="editor-legend">{icon('goal',22)} Гол · {icon('pass',22)} Пас · {icon('saves',22)} Сейвы · {icon('conceded',22)} Пропустил · {icon('own',22)} Автогол · {icon('rating',22)} Рейтинг дня</div><div className="editor-players">{players.map(p=>{const x=playerDraft.find(v=>v.playerId===p.id)!;const gp=Number(x.goals||0)+Number(x.assists||0);return <div className="editor-player" key={p.id}><div className="editor-player-head"><div className="editor-player-name">{p.name}<small>{p.position||'Позиция не указана'}{p.is_goalkeeper?' · Вратарь':''}</small></div><select value={x.teamId||''} onChange={e=>updatePlayer(p.id,{teamId:e.target.value?Number(e.target.value):''})}><option value="">Не участвует</option>{teamDraft.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div><div className="editor-player-stats"><label>{icon('goal',22)}<span>Забил</span><input type="number" min="0" step="1" value={x.goals} onChange={e=>updatePlayer(p.id,{goals:e.target.value===''?'':Number(e.target.value)})}/></label><label>{icon('pass',22)}<span>Пас</span><input type="number" min="0" step="1" value={x.assists} onChange={e=>updatePlayer(p.id,{assists:e.target.value===''?'':Number(e.target.value)})}/></label><div className="editor-stat-read"><span>{icon('gp',22)} Г+П</span><b>{gp}</b></div><label>{icon('own',22)}<span>Автогол</span><input type="number" min="0" step="1" value={x.ownGoals} onChange={e=>updatePlayer(p.id,{ownGoals:e.target.value===''?'':Number(e.target.value)})}/></label><label>{icon('saves',22)}<span>Сейвы</span><input type="number" min="0" step="1" value={x.saves} onChange={e=>updatePlayer(p.id,{saves:e.target.value===''?'':Number(e.target.value)})}/></label><label>{icon('conceded',22)}<span>Пропустил</span><input type="number" min="0" step="1" value={x.conceded} onChange={e=>updatePlayer(p.id,{conceded:e.target.value===''?'':Number(e.target.value)})}/></label><button type="button" className={x.goalkeeper?'gk-button active':'gk-button'} onClick={()=>updatePlayer(p.id,{goalkeeper:!x.goalkeeper})}>{icon('saves',22)} <span>В воротах</span></button><div className="editor-stat-read rating"><span>{icon('rating',22)} Рейтинг дня</span><b>{ratingFor(x).toFixed(1)}</b></div></div></div>})}</div></section>
+      <section className="editor-section">
+        <div className="editor-section-head"><div><h3>👥 Состав и статистика игроков</h3><p>Добавляй участников отдельно в каждую команду. Статистика показывается только у выбранных игроков.</p></div></div>
+        <div className="editor-legend">{icon('goal',22)} Гол · {icon('pass',22)} Пас · {icon('saves',22)} Сейвы · {icon('conceded',22)} Пропустил · {icon('own',22)} Автогол · {icon('rating',22)} Рейтинг дня</div>
+        <div className="editor-roster-teams">
+          {teamDraft.map((team,i)=>{
+            const members=playerDraft.filter(x=>String(x.teamId)===String(team.id));
+            const available=players.filter(p=>!playerDraft.some(x=>String(x.playerId)===String(p.id)&&!!x.teamId));
+            return <div className="editor-roster-team" key={team.id}>
+              <div className="editor-roster-team-head"><div><h4><span className="editor-team-dot" style={{background:team.color||'#cfb842'}}/> {team.name||`Команда ${i+1}`}</h4><small>Игроков в составе: {members.length}</small></div></div>
+              <label className="editor-add-player-label" htmlFor={`editor-add-player-${team.id}`}>Добавить игрока в команду</label>
+              <select id={`editor-add-player-${team.id}`} className="editor-add-player-select" value="" onChange={e=>{if(e.target.value)addPlayerToTeam(Number(team.id),Number(e.target.value));}}>
+                <option value="">+ Выбрать игрока из базы</option>
+                {available.map(p=><option key={p.id} value={p.id}>{p.name}{p.position?` — ${p.position}`:''}</option>)}
+              </select>
+              <div className="editor-players">
+                {members.length===0?<div className="editor-roster-empty">Пока никто не добавлен.</div>:members.map(x=>{
+                  const p=players.find(p=>String(p.id)===String(x.playerId));
+                  return p?playerStats(p,x):null;
+                })}
+              </div>
+            </div>;
+          })}
+        </div>
+      </section>
       {error&&<div className="editor-error">{error}</div>}
       <div className="native-editor-footer"><button className="editor-cancel-btn" onClick={onClose} disabled={saving}>Отмена</button><button className="editor-save-btn" onClick={save} disabled={saving}>{saving?'Сохраняем…':'💾 Сохранить ВСЁ'}</button></div>
     </div>
