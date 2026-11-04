@@ -64,13 +64,29 @@ export default function App(){
     try{
       const current=(await w.sb?.auth.getSession())?.data?.session||null;
       setSession(current);
-      if(current){const check=await w.sb?.rpc('is_site_admin');setAdminVerified(!check?.error&&check?.data===true);}
+      if(current){const check=await w.sb?.rpc('is_site_admin');const allowed=!check?.error&&check?.data===true;setAdminVerified(allowed);const legacyButton=w.document?.getElementById('heroAdminBtn');legacyButton?.classList.toggle('admin-visible',allowed);}
       else setAdminVerified(false);
     }catch{setAdminVerified(false)}
     setReady(true);
   },[]);
 
-  const onLoad=()=>{ setTimeout(refresh,250); };
+  const onLoad=()=>{
+    const w=getEngine();
+    if(w?.sb && w.renderAdmin && !(w as any).__secureAdminUi){
+      const original=w.renderAdmin.bind(w);
+      w.renderAdmin=async()=>{
+        const check=await w.sb.rpc('is_site_admin');
+        if(check.error||check.data!==true){
+          const box=w.document?.getElementById('adminContent');
+          if(box)box.innerHTML='<h2>Доступ ограничен</h2><p>Для административных действий требуется подтверждённая учётная запись администратора.</p>';
+          return;
+        }
+        return original();
+      };
+      (w as any).__secureAdminUi=true;
+    }
+    setTimeout(refresh,250);
+  };
   useEffect(()=>{const handler=(event:MessageEvent)=>{if(event.source!==frame.current?.contentWindow)return;if(event.data?.type==="budnichny-day-created"){setDayModal(null);setAdminSection("days");refresh();}else if(event.data?.type==="budnichny-edit-day"){const id=Number(event.data.id);if(Number.isSafeInteger(id)&&id>0){setPlayerProfile(null);setDayModal(null);setTab("admin");setAdminSection("days");setEditDayId(id);}}};window.addEventListener("message",handler);return()=>window.removeEventListener("message",handler);},[refresh]);
   useEffect(()=>{ const t=setInterval(()=>{ if(getEngine()?.getLeagueState && getEngine()?.sb) refresh(); },2500); return()=>clearInterval(t); },[refresh]);
 
