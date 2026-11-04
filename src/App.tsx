@@ -771,7 +771,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
     if(!gameDraft.length){setError('Добавь хотя бы одну игру.');return;}
     if(gameDraft.some(g=>!g.team_a_id||!g.team_b_id||String(g.team_a_id)===String(g.team_b_id)||!teamDraft.some(t=>String(t.id)===String(g.team_a_id))||!teamDraft.some(t=>String(t.id)===String(g.team_b_id)))){setError('В каждой игре должны быть две разные существующие команды.');return;}
     for(let i=0;i<gameDraft.length;i++){const g=gameDraft[i];if(!isNonNegativeInteger(g.score_a)||!isNonNegativeInteger(g.score_b)){setError(`Проверь счёт в игре №${i+1}: нужны целые неотрицательные числа.`);return;}}
-    const statFields:Array<[string,string]>=[['goals','голы'],['assists','передачи'],['conceded','пропущенные мячи'],['ownGoals','автоголы'],['saves','сейвы']];
+    const statFields:Array<['goals'|'assists'|'conceded'|'ownGoals'|'saves',string]>=[['goals','голы'],['assists','передачи'],['conceded','пропущенные мячи'],['ownGoals','автоголы'],['saves','сейвы']];
     for(const x of playerDraft){if(!x.teamId)continue;for(const [key,label] of statFields){if(!isNonNegativeInteger(x[key]??0)){setError(`У игрока ${players.find(p=>p.id===x.playerId)?.name||x.playerId} поле «${label}» должно быть целым неотрицательным числом.`);return;}}}
     const dayCurrent=dayPlayers.filter(x=>String(x.game_day_id)===String(dayId));
     const dailyRows=playerDraft.filter(x=>x.teamId).map(x=>({game_day_id:dayId,player_id:x.playerId,team_id:Number(x.teamId),goals:Number(x.goals)||0,assists:Number(x.assists)||0,conceded:Number(x.conceded)||0,own_goals:Number(x.ownGoals)||0,saves:Number(x.saves)||0,goalkeeper:!!x.goalkeeper}));
