@@ -15,7 +15,7 @@ Never commit secrets or put the service-role key in browser code.
 
 ## Important release blockers
 - This migration is a draft and has not been run against staging or production.
-- Invalid-code attempts and one-time challenge consumption are now serialized by the `consume_admin_email_challenge` database RPC. The 60-second send cooldown is still a best-effort check in the Edge Function and needs distributed rate-limit testing.
+- Invalid-code attempts and one-time challenge consumption are serialized by the `consume_admin_email_challenge` database RPC. The challenge is bound to the Supabase Auth `session_id`, so another login session cannot reuse a recently verified challenge. The 60-second send cooldown is still a best-effort check in the Edge Function and needs distributed rate-limit testing.
 - Telegram, Yandex and VK OAuth provider credentials and callback settings must be configured in Supabase by the owner.
 - The branch includes UI for invitation creation, player-link request review, per-match participant submissions and admin moderation. Review feedback is stored separately from the applicant's original note and displayed in the account cabinet.
 - Audit all existing Storage policies and bucket visibility before rollout. The migration only replaces specifically named `game-day-images` policies; any other permissive Storage policy must be reviewed explicitly.
@@ -26,7 +26,8 @@ Never commit secrets or put the service-role key in browser code.
 ## Changes made during the follow-up review
 - Fixed malformed dollar-quote delimiters in the three PL/pgSQL functions that consume the admin challenge, resubmit match statistics and revoke invitations.
 - Added separate review-feedback fields for player-link requests and match-stat moderation so administrator comments do not overwrite the user's original note.
-- Tightened match-stat resubmission ownership with `IS DISTINCT FROM`, including rows whose `submitted_by` value is NULL.
+- Tightened match-stat resubmission ownership with `IS DISTINCT FROM`, including rows whose `submitted_by` value is NULL; stale moderator feedback is cleared when a correction is resubmitted.
+- Bound administrator email verification to the authenticated Supabase session rather than only the administrator user ID.
 - The player cabinet now loads its submitted match-stat statuses and displays moderator feedback.
 
 ## Remaining release blockers
