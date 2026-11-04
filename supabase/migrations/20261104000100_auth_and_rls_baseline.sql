@@ -80,6 +80,15 @@ alter table public.game_player_stats
 
 alter table public.player_link_requests add column if not exists review_note text;
 
+do $$
+begin
+ if not exists(select 1 from pg_constraint where conname='game_player_stats_nonnegative_counts' and conrelid='public.game_player_stats'::regclass) then
+  alter table public.game_player_stats add constraint game_player_stats_nonnegative_counts
+   check(goals>=0 and assists>=0 and own_goals>=0 and saves>=0 and conceded>=0);
+ end if;
+end; $$;
+
+
 create or replace function public.handle_new_auth_user_profile()
 returns trigger language plpgsql security definer set search_path=''
 as $$
@@ -234,6 +243,17 @@ end; $$;
 revoke all on function public.revoke_invitation(bigint) from public,anon;
 grant execute on function public.revoke_invitation(bigint) to authenticated;
 
+
+-- Security-definer RPCs are not executable by anonymous callers.
+revoke all on function public.is_site_admin() from public,anon;
+grant execute on function public.is_site_admin() to authenticated;
+revoke all on function public.is_linked_participant_for(bigint) from public,anon;
+grant execute on function public.is_linked_participant_for(bigint) to authenticated;
+revoke all on function public.create_invitation(integer,integer) from public,anon;
+revoke all on function public.request_player_link(bigint,text,text) from public,anon;
+revoke all on function public.review_player_link_request(bigint,text,text) from public,anon;
+revoke all on function public.review_match_stat(bigint,text,text) from public,anon;
+
 -- Browser cannot directly manipulate account-layer tables.
 alter table public.user_profiles enable row level security;
 alter table public.invitation_tokens enable row level security;
@@ -292,7 +312,9 @@ create policy game_player_stats_public_approved on public.game_player_stats for 
 create policy game_player_stats_admin_manage on public.game_player_stats for all to authenticated using(public.is_site_admin()) with check(public.is_site_admin());
 create policy game_player_stats_participant_read_own on public.game_player_stats for select to authenticated using(submitted_by=auth.uid());
 create policy game_player_stats_participant_submit on public.game_player_stats for insert to authenticated
- with check(status='pending' and submitted_by=auth.uid() and public.is_linked_participant_for(player_id)
+ with check(status='pending' and submitted_by=auth.uid()
+  and goals>=0 and assists>=0 and own_goals>=0 and saves>=0 and conceded>=0
+  and public.is_linked_participant_for(player_id)
   and exists(select 1 from public.games g where g.id=game_player_stats.game_id
    and g.game_day_id=game_player_stats.game_day_id
    and game_player_stats.team_id in (g.team_a_id,g.team_b_id))
