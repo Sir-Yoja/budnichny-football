@@ -486,15 +486,16 @@ function Admin({session,verified,stats,section,setSection,onLogin,onLogout,playe
 }
 
 function AccountPage({session,players,days,games,teams,dayPlayers,engine,onLoginSocial,onRefresh}:{session:any;players:any[];days:any[];games:any[];teams:any[];dayPlayers:any[];engine:any;onLoginSocial:(provider:string)=>Promise<void>;onRefresh:()=>Promise<void>}){
- const [profile,setProfile]=useState<any>(null),[requests,setRequests]=useState<any[]>([]),[selected,setSelected]=useState(''),[token,setToken]=useState(''),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const [profile,setProfile]=useState<any>(null),[requests,setRequests]=useState<any[]>([]),[myStats,setMyStats]=useState<any[]>([]),[selected,setSelected]=useState(''),[token,setToken]=useState(''),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [selectedGame,setSelectedGame]=useState(''),[statDraft,setStatDraft]=useState({goals:0,assists:0,own_goals:0,saves:0,conceded:0,goalkeeper:false});
  const load=async()=>{
-  if(!session?.user?.id||!engine?.sb){setProfile(null);setRequests([]);return;}
-  const [p,r]=await Promise.all([
+  if(!session?.user?.id||!engine?.sb){setProfile(null);setRequests([]);setMyStats([]);return;}
+  const [p,r,s]=await Promise.all([
    engine.sb.from('user_profiles').select('user_id,role,linked_player_id').eq('user_id',session.user.id).maybeSingle(),
-   engine.sb.from('player_link_requests').select('id,player_id,status,note,created_at,reviewed_at').eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(10)
+   engine.sb.from('player_link_requests').select('id,player_id,status,note,review_note,created_at,reviewed_at').eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(10),
+   engine.sb.from('game_player_stats').select('id,game_id,game_day_id,player_id,status,moderation_note,created_at').eq('submitted_by',session.user.id).order('created_at',{ascending:false}).limit(30)
   ]);
-  if(p.error)throw p.error;if(r.error)throw r.error;setProfile(p.data);setRequests(r.data||[]);
+  if(p.error)throw p.error;if(r.error)throw r.error;if(s.error)throw s.error;setProfile(p.data);setRequests(r.data||[]);setMyStats(s.data||[]);
  };
  useEffect(()=>{let alive=true;load().catch(e=>alive&&setError(e.message||'Не удалось загрузить кабинет'));return()=>{alive=false}},[session?.user?.id,engine]);
  const myPlayer=players.find(p=>String(p.id)===String(profile?.linked_player_id));
@@ -543,19 +544,21 @@ function AccountPage({session,players,days,games,teams,dayPlayers,engine,onLogin
    <div className="quick-grid">{(['goals','assists','own_goals','saves','conceded'] as const).map((k)=><label key={k}>{({goals:'Голы',assists:'Пасы',own_goals:'Автоголы',saves:'Сейвы',conceded:'Пропущено'} as any)[k]}<input type="number" min="0" step="1" value={statDraft[k]} onChange={e=>setStatDraft(v=>({...v,[k]:e.target.value===''?0:Number(e.target.value)}))}/></label>)}</div>
    <label className="check"><input type="checkbox" checked={statDraft.goalkeeper} onChange={e=>setStatDraft(v=>({...v,goalkeeper:e.target.checked}))}/> Играл вратарём</label>
    <button className="primary-btn" onClick={submitMatchStats} disabled={busy||!eligibleGames.length}>{busy?'Отправляю…':'Отправить на проверку'}</button>
+   <h3 style={{marginTop:22}}>Моя статистика на проверке</h3>
+   {myStats.length?<div className="admin-list">{myStats.map(row=>{const game=games.find(g=>String(g.id)===String(row.game_id));const day=days.find(d=>String(d.id)===String(row.game_day_id));return <div className="admin-day" key={row.id}><div><b>{day?new Date(day.game_date).toLocaleDateString('ru-RU'):'Игровой день'} · матч #{row.game_id}</b><small>{row.status==='pending'?'Ожидает проверки':row.status==='approved'?'Подтверждена':row.status==='rejected'?'Отклонена':'Нужно исправить'}</small>{row.moderation_note&&<small>Комментарий администратора: {row.moderation_note}</small>}</div></div>})}</div>:<p>Отправленных записей пока нет.</p>}
   </div>}\n   <h3>Мои заявки</h3>{requests.length?<div className="admin-list">{requests.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{new Date(r.created_at).toLocaleString('ru-RU')}</small></div><span>{r.status==='pending'?'На проверке':r.status==='approved'?'Подтверждена':r.status==='rejected'?'Отклонена':'Нужно исправить'}</span>{r.note&&<small>{r.note}</small>}</div>)}</div>:<p>Заявок пока нет.</p>}
   </div>}
  </section>;
 }
 function AccountRequestsAdmin({engine,players,onRefresh}:{engine:any;players:any[];onRefresh:()=>Promise<void>}){
  const [rows,setRows]=useState<any[]>([]),[maxUses,setMaxUses]=useState('1'),[ttl,setTtl]=useState('14'),[busy,setBusy]=useState(false),[invite,setInvite]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
- const load=async()=>{const r=await engine.sb.from('player_link_requests').select('id,user_id,player_id,status,note,created_at').eq('status','pending').order('created_at',{ascending:true});if(r.error)throw r.error;setRows(r.data||[])};
+ const load=async()=>{const r=await engine.sb.from('player_link_requests').select('id,user_id,player_id,status,note,review_note,created_at').eq('status','pending').order('created_at',{ascending:true});if(r.error)throw r.error;setRows(r.data||[])};
  useEffect(()=>{load().catch(e=>setError(e.message||'Ошибка загрузки'))},[engine]);
  const create=async()=>{setBusy(true);setError('');setInvite('');try{const r=await engine.sb.rpc('create_invitation',{p_max_uses:Number(maxUses),p_ttl_days:Number(ttl)});if(r.error)throw r.error;setInvite(r.data);setMessage('Код создан. Скопируй и отправь его игроку лично.');}catch(e:any){setError(e.message||'Не удалось создать приглашение')}finally{setBusy(false)}};
  const decide=async(id:number,decision:string)=>{const note=decision==='needs_correction'?prompt('Что нужно исправить?')||'Нужно уточнить данные':null;setBusy(true);try{const r=await engine.sb.rpc('review_player_link_request',{p_request_id:id,p_decision:decision,p_note:note});if(r.error)throw r.error;await load();await onRefresh()}catch(e:any){setError(e.message||'Не удалось обработать заявку')}finally{setBusy(false)}};
  return <><div className="admin-header"><div><div className="eyebrow">АККАУНТЫ</div><h1>Приглашения и привязки</h1><p>{rows.length} заявок ожидают проверки.</p></div></div>
   <div className="admin-card" style={{padding:20,marginBottom:20}}><h3>Создать приглашение</h3><div className="quick-grid"><label>Использований<select value={maxUses} onChange={e=>setMaxUses(e.target.value)}>{[1,2,3,5,10].map(v=><option key={v}>{v}</option>)}</select></label><label>Срок действия<select value={ttl} onChange={e=>setTtl(e.target.value)}><option value="1">1 день</option><option value="7">7 дней</option><option value="14">14 дней</option><option value="30">30 дней</option></select></label></div><button className="primary-btn" onClick={create} disabled={busy}>Создать код</button>{invite&&<p><code>{invite}</code> <button onClick={()=>navigator.clipboard?.writeText(invite)}>Копировать</button></p>}{message&&<p>{message}</p>}{error&&<p className="error">{error}</p>}</div>
-  <h3>Заявки на привязку</h3>{rows.length?<div className="admin-list">{rows.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{r.user_id} · {new Date(r.created_at).toLocaleString('ru-RU')}</small>{r.note&&<small>{r.note}</small>}</div><div className="day-actions"><button className="primary-mini" disabled={busy} onClick={()=>decide(r.id,'approved')}>Подтвердить</button><button disabled={busy} onClick={()=>decide(r.id,'needs_correction')}>Уточнить</button><button disabled={busy} onClick={()=>decide(r.id,'rejected')}>Отклонить</button></div></div>)}</div>:<p>Новых заявок нет.</p>}
+  <h3>Заявки на привязку</h3>{rows.length?<div className="admin-list">{rows.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{r.user_id} · {new Date(r.created_at).toLocaleString('ru-RU')}</small>{r.note&&<small>{r.note}</small>}{r.review_note&&<small>Комментарий: {r.review_note}</small>}</div><div className="day-actions"><button className="primary-mini" disabled={busy} onClick={()=>decide(r.id,'approved')}>Подтвердить</button><button disabled={busy} onClick={()=>decide(r.id,'needs_correction')}>Уточнить</button><button disabled={busy} onClick={()=>decide(r.id,'rejected')}>Отклонить</button></div></div>)}</div>:<p>Новых заявок нет.</p>}
  </>;
 }
 
