@@ -54,9 +54,9 @@ begin
     or p_expires_at<=now() or p_expires_at>now()+interval '5 minutes' then
   raise exception 'invalid_challenge_request' using errcode='22023';
  end if;
- perform pg_advisory_xact_lock(hashtextextended(p_user_id::text,0));
+ perform pg_advisory_xact_lock(hashtextextended(p_user_id::text || ':' || p_session_id::text,0));
  select created_at into last_created from public.admin_email_challenges
-  where user_id=p_user_id
+  where user_id=p_user_id and session_id=p_session_id
   order by created_at desc limit 1;
  if last_created is not null and last_created>now()-interval '60 seconds' then
   return jsonb_build_object('status','cooldown');
