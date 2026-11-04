@@ -38,6 +38,39 @@ create table if not exists public.admin_email_challenges(
  verified_at timestamptz, created_at timestamptz not null default now()
 );
 create index if not exists admin_email_challenges_user_created_idx on public.admin_email_challenges(user_id,created_at desc);
+create index if not exists admin_email_challenges_session_created_idx
+ on public.admin_email_challenges(user_id,session_id,created_at desc);
+
+-- Serialize challenge issuance and enforce cooldown per authenticated session.
+create or replace function public.issue_admin_email_challenge(
+ p_user_id uuid,p_session_id uuid,p_code_hash text,p_expires_at timestamptz
+)
+returns jsonb language plpgsql security definer set search_path=''
+as $
+declare last_created timestamptz; new_id bigint;
+begin
+ if p_user_id is distinct from '888c101b-d99b-4e8c-8c68-ff0a7e61badd'::uuid
+    or p_session_id is null or p_code_hash is null
+    or p_expires_at<=now() or p_expires_at>now()+interval '5 minutes' then
+  raise exception 'invalid_challenge_request' using errcode='22023';
+ end if;
+ perform pg_advisory_xact_lock(hashtextextended(p_user_id::text||':'||p_session_id::text,0));
+ select created_at into last_created from public.admin_email_challenges
+  where user_id=p_user_id and session_id=p_session_id
+  order by created_at desc limit 1;
+ if last_created is not null and last_created>now()-interval '60 seconds' then
+  return jsonb_build_object('status','cooldown');
+ end if;
+ delete from public.admin_email_challenges
+  where user_id=p_user_id and session_id=p_session_id;
+ insert into public.admin_email_challenges(user_id,session_id,code_hash,expires_at,attempts)
+ values(p_user_id,p_session_id,p_code_hash,p_expires_at,0)
+ returning id into new_id;
+ return jsonb_build_object('status','created','challenge_id',new_id);
+end; $;
+revoke all on function public.issue_admin_email_challenge(uuid,uuid,text,timestamptz) from public,anon,authenticated;
+grant execute on function public.issue_admin_email_challenge(uuid,uuid,text,timestamptz) to service_role;
+
 
 alter table public.game_player_stats
  add column if not exists submitted_by uuid references auth.users(id) on delete set null,
