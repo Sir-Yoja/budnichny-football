@@ -41,7 +41,10 @@ create index if not exists admin_email_challenges_user_created_idx on public.adm
 alter table public.game_player_stats
  add column if not exists submitted_by uuid references auth.users(id) on delete set null,
  add column if not exists status text not null default 'approved'
-   check(status in ('pending','approved','rejected','needs_correction'));
+   check(status in ('pending','approved','rejected','needs_correction')),
+ add column if not exists moderation_note text;
+
+alter table public.player_link_requests add column if not exists review_note text;
 
 create or replace function public.handle_new_auth_user_profile()
 returns trigger language plpgsql security definer set search_path=''
@@ -121,7 +124,8 @@ begin
   insert into public.user_profiles(user_id,role,linked_player_id) values(req.user_id,'participant',req.player_id)
   on conflict(user_id) do update set role='participant',linked_player_id=excluded.linked_player_id,updated_at=now();
  end if;
- update public.player_link_requests set status=p_decision,note=coalesce(left(p_note,500),note),
+ update public.player_link_requests set status=p_decision,
+  review_note=case when p_note is null then review_note else left(p_note,500) end,
   reviewed_by=auth.uid(),reviewed_at=now() where id=p_request_id;
 end; $$;
 
@@ -131,7 +135,7 @@ as $$
 begin
  if not public.is_site_admin() then raise exception 'admin_required' using errcode='42501'; end if;
  if p_decision not in ('approved','rejected','needs_correction') then raise exception 'invalid_decision'; end if;
- update public.game_player_stats set status=p_decision
+ update public.game_player_stats set status=p_decision,moderation_note=nullif(left(p_note,500),'')
  where id=p_stat_id and status='pending';
  if not found then raise exception 'stat_not_pending_or_missing'; end if;
 end; $$;
@@ -166,7 +170,7 @@ declare old public.game_player_stats%rowtype; me uuid:=auth.uid();
 begin
  if me is null then raise exception 'authentication_required' using errcode='42501'; end if;
  select * into old from public.game_player_stats where id=p_stat_id for update;
- if old.id is null or old.submitted_by<>me or old.status<>'needs_correction' then
+ if old.id is null or old.submitted_by is distinct from me or old.status<>'needs_correction' then
   raise exception 'stat_not_eligible_for_resubmission' using errcode='42501';
  end if;
  if not public.is_linked_participant_for(old.player_id) then raise exception 'participant_link_required'; end if;
