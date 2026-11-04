@@ -72,17 +72,31 @@ export default function App(){
 
   const onLoad=()=>{
     const w=getEngine();
-    if(w?.sb && w.renderAdmin && !(w as any).__secureAdminUi){
-      const original=w.renderAdmin.bind(w);
-      w.renderAdmin=async()=>{
+    if(w?.sb && !(w as any).__secureAdminUi){
+      const requireAdmin=async()=>{
         const check=await w.sb.rpc('is_site_admin');
-        if(check.error||check.data!==true){
-          const box=w.document?.getElementById('adminContent');
-          if(box)box.innerHTML='<h2>Доступ ограничен</h2><p>Для административных действий требуется подтверждённая учётная запись администратора.</p>';
-          return;
-        }
-        return original();
+        if(check.error||check.data!==true)throw new Error('Для этого действия нужна подтверждённая сессия администратора.');
       };
+      // Gate legacy iframe entry points as a second UI layer. Supabase RLS remains the security boundary.
+      if(w.renderAdmin){
+        const original=w.renderAdmin.bind(w);
+        w.renderAdmin=async()=>{
+          try{await requireAdmin();}catch{
+            const box=w.document?.getElementById('adminContent');
+            if(box)box.innerHTML='<h2>Доступ ограничен</h2><p>Требуется подтверждённая учётная запись администратора.</p>';
+            return;
+          }
+          return original();
+        };
+      }
+      for(const name of ['saveDay','saveEditDay','deletePlayer','deleteGameDay','saveQuickEntry','quickSave']){
+        const fn=(w as any)[name];
+        if(typeof fn==='function' && !(fn as any).__adminGuarded){
+          const guarded=async(...args:any[])=>{await requireAdmin();return fn(...args);};
+          (guarded as any).__adminGuarded=true;
+          (w as any)[name]=guarded;
+        }
+      }
       (w as any).__secureAdminUi=true;
     }
     setTimeout(refresh,250);
