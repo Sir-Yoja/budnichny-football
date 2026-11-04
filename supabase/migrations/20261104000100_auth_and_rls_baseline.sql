@@ -46,7 +46,7 @@ create or replace function public.issue_admin_email_challenge(
  p_user_id uuid,p_session_id uuid,p_code_hash text,p_expires_at timestamptz
 )
 returns jsonb language plpgsql security definer set search_path=''
-as $
+as $$
 declare last_created timestamptz; new_id bigint;
 begin
  if p_user_id is distinct from '888c101b-d99b-4e8c-8c68-ff0a7e61badd'::uuid
@@ -67,7 +67,7 @@ begin
  values(p_user_id,p_session_id,p_code_hash,p_expires_at,0)
  returning id into new_id;
  return jsonb_build_object('status','created','challenge_id',new_id);
-end; $;
+end; $$;
 revoke all on function public.issue_admin_email_challenge(uuid,uuid,text,timestamptz) from public,anon,authenticated;
 grant execute on function public.issue_admin_email_challenge(uuid,uuid,text,timestamptz) to service_role;
 
