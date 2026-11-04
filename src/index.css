@@ -587,3 +587,24 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   transform:none!important;
 }
 .account-card>.account-profile-header .account-logout-btn:active{background:rgba(145,169,184,.15)!important}
+
+/* Последняя фиксация: выход — нейтральное второстепенное действие */
+.admin-card.account-card .admin-header.account-profile-header > button.account-logout-btn,
+.admin-card.account-card .admin-header.account-profile-header > .account-logout-btn{
+  background:#152b36!important;
+  background-image:none!important;
+  border:1px solid #344b57!important;
+  color:#aebdc7!important;
+  box-shadow:none!important;
+  text-shadow:none!important;
+  font-weight:600!important;
+}
+.admin-card.account-card .admin-header.account-profile-header > button.account-logout-btn:hover,
+.admin-card.account-card .admin-header.account-profile-header > .account-logout-btn:hover{
+  background:#1a3440!important;
+  border-color:#49616d!important;
+  color:#d0dce2!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+/* В авторизованном кабинете не показываем дублирующее пояснение над карточкой */
