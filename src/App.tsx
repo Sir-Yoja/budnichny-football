@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { legacyHtml } from './legacyHtml';
 
-type Tab = 'home' | 'rating' | 'admin';
-type AdminSection = 'overview' | 'players' | 'days';
+type Tab = 'home' | 'rating' | 'admin' | 'account';
+type AdminSection = 'overview' | 'players' | 'days' | 'accounts' | 'moderation';
 
 type Engine = Window & {
   players?: any[]; days?: any[]; teams?: any[]; games?: any[]; dayPlayers?: any[];
@@ -33,6 +33,7 @@ export default function App(){
   const [games,setGames]=useState<any[]>([]);
   const [dayPlayers,setDayPlayers]=useState<any[]>([]);
   const [session,setSession]=useState<any>(null);
+  const [adminVerified,setAdminVerified]=useState(false);
   const [ready,setReady]=useState(false);
   const [loginOpen,setLoginOpen]=useState(false);
   const [editingPlayer,setEditingPlayer]=useState<any|null>(null);
@@ -59,11 +60,46 @@ export default function App(){
     const state=w.getLeagueState?.();
     setPlayers([...(state?.players||w.players||[])]); setDays([...(state?.days||w.days||[])]); setTeams([...(state?.teams||w.teams||[])]); setGames([...(state?.games||w.games||[])]); setDayPlayers([...(state?.dayPlayers||w.dayPlayers||[])]);
     setIcons({...((w.__leagueIcons||{}) as Record<string,string>)});
-    try{setSession((await w.sb?.auth.getSession())?.data?.session||null)}catch{}
+    try{
+      const current=(await w.sb?.auth.getSession())?.data?.session||null;
+      setSession(current);
+      if(current){const check=await w.sb?.rpc('is_site_admin');const allowed=!check?.error&&check?.data===true;setAdminVerified(allowed);const legacyButton=w.document?.getElementById('heroAdminBtn');legacyButton?.classList.toggle('admin-visible',allowed);}
+      else setAdminVerified(false);
+    }catch{setAdminVerified(false)}
     setReady(true);
   },[]);
 
-  const onLoad=()=>{ setTimeout(refresh,250); };
+  const onLoad=()=>{
+    const w=getEngine();
+    if(w?.sb && !(w as any).__secureAdminUi){
+      const requireAdmin=async()=>{
+        const check=await w.sb.rpc('is_site_admin');
+        if(check.error||check.data!==true)throw new Error('Для этого действия нужна подтверждённая сессия администратора.');
+      };
+      // Gate legacy iframe entry points as a second UI layer. Supabase RLS remains the security boundary.
+      if(w.renderAdmin){
+        const original=w.renderAdmin.bind(w);
+        w.renderAdmin=async()=>{
+          try{await requireAdmin();}catch{
+            const box=w.document?.getElementById('adminContent');
+            if(box)box.innerHTML='<h2>Доступ ограничен</h2><p>Требуется подтверждённая учётная запись администратора.</p>';
+            return;
+          }
+          return original();
+        };
+      }
+      for(const name of ['saveDay','saveEditDay','deletePlayer','deleteGameDay','saveQuickEntry','quickSave']){
+        const fn=(w as any)[name];
+        if(typeof fn==='function' && !(fn as any).__adminGuarded){
+          const guarded=async(...args:any[])=>{await requireAdmin();return fn(...args);};
+          (guarded as any).__adminGuarded=true;
+          (w as any)[name]=guarded;
+        }
+      }
+      (w as any).__secureAdminUi=true;
+    }
+    setTimeout(refresh,250);
+  };
   useEffect(()=>{const handler=(event:MessageEvent)=>{if(event.source!==frame.current?.contentWindow)return;if(event.data?.type==="budnichny-day-created"){setDayModal(null);setAdminSection("days");refresh();}else if(event.data?.type==="budnichny-edit-day"){const id=Number(event.data.id);if(Number.isSafeInteger(id)&&id>0){setPlayerProfile(null);setDayModal(null);setTab("admin");setAdminSection("days");setEditDayId(id);}}};window.addEventListener("message",handler);return()=>window.removeEventListener("message",handler);},[refresh]);
   useEffect(()=>{ const t=setInterval(()=>{ if(getEngine()?.getLeagueState && getEngine()?.sb) refresh(); },2500); return()=>clearInterval(t); },[refresh]);
 
@@ -294,12 +330,20 @@ export default function App(){
       if(/email not confirmed/i.test(msg)) throw new Error('Email администратора не подтверждён в Supabase.');
       throw new Error(msg||'Не удалось войти в админку.');
     }
-    setSession(r.data?.session||null);
-    setLoginOpen(false);
+    setSession(r.data?.session||null);setAdminVerified(false);
+    const sent=await w.sb!.functions.invoke('admin-email-code',{body:{action:'send'}});
+    if(sent.error||sent.data?.error)throw new Error(sent.data?.error||sent.error?.message||'Не удалось отправить код на Email.');
     setAdminSection('overview');
-    await refresh();
   };
-  const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);};
+  const verifyAdminCode=async(code:string)=>{
+    const w=await waitForEngine();
+    const result=await w.sb!.functions.invoke('admin-email-code',{body:{action:'verify',code}});
+    if(result.error||result.data?.error)throw new Error(result.data?.error||result.error?.message||'Не удалось подтвердить код.');
+    const check=await w.sb!.rpc('is_site_admin');
+    if(check.error||check.data!==true)throw new Error('Код принят, но база не подтвердила права администратора. Обнови страницу и попробуй снова.');
+    setAdminVerified(true);setLoginOpen(false);await refresh();
+  };
+  const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);};
   const addPlayer=async(name:string,position:string='',gk:boolean=false)=>{const w=getEngine(); const r=await w?.sb?.from('players').insert({name,position:position||null,is_goalkeeper:gk}).select().single(); if(r?.error)throw r.error; await refresh();setNewPlayerOpen(false);};
   const updatePlayer=async(p:any)=>{const w=getEngine();const r=await w?.sb?.from('players').update({name:p.name,position:p.position||null,is_goalkeeper:!!p.is_goalkeeper}).eq('id',p.id).select().single();if(r?.error)throw r.error;await refresh();setEditingPlayer(null);};
   const deletePlayer=async(id:number)=>{
@@ -346,6 +390,7 @@ export default function App(){
       <nav className={menu?'nav open':'nav'}>
         <button className={tab==='home'?'active':''} onClick={()=>{setTab('home');setMenu(false)}}>Игровые дни</button>
         <button className={tab==='rating'?'active':''} onClick={()=>{setTab('rating');setMenu(false)}}>Рейтинг</button>
+         <button className={tab==='account'?'active':''} onClick={()=>{setTab('account');setMenu(false)}}><CircleUserRound size={16}/> {session?'Кабинет':'Войти'}</button>
         <button className={tab==='admin'?'active':''} onClick={()=>{setTab('admin');setMenu(false)}}><Shield size={16}/> Админка</button>
       </nav>
       <button className="mobile-menu" onClick={()=>setMenu(v=>!v)}><Menu/></button>
@@ -353,11 +398,12 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>} 
-      {tab==='admin' && <Admin session={session} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay}/>} 
+      {tab==='rating' && <Rating rows={rating} icons={icons} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='account' && <AccountPage session={session} adminVerified={adminVerified} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname}});if(result.error)throw result.error;}} onRefresh={refresh}/>} 
+      {tab==='admin' && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay}/>} 
     </main>
 
-    {loginOpen && <LoginModal onClose={()=>setLoginOpen(false)} onLogin={login}/>} 
+    {loginOpen && <LoginModal onClose={()=>setLoginOpen(false)} onLogin={login} onVerify={verifyAdminCode}/>} 
     {newPlayerOpen && <PlayerModal onClose={()=>setNewPlayerOpen(false)} onSave={addPlayer}/>}
     {editingPlayer && <PlayerModal player={editingPlayer} onClose={()=>setEditingPlayer(null)} onSave={updatePlayer}/>}
     {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} icons={icons} onClose={()=>setPlayerProfile(null)}/>}
@@ -433,10 +479,121 @@ function Rating({rows,icons,sort,setSort,onPlayer}:{rows:any[];icons:Record<stri
     {inactive.length>0&&<><div className="rating-group-head rating-group-inactive"><div><h3>Пока без игровых дней</h3><p>Игроки есть в базе, но ещё не участвовали в сохранённых игровых днях</p></div><span className="rating-group-count">{inactive.length} игроков</span></div>{renderTable(inactive,false)}</>}
   </section>
 }
-function Admin({session,stats,section,setSection,onLogin,onLogout,players,days,teams,games,dayPlayers,onAdd,onEdit,onDelete,onOpenDay,onEditDay,onQuickEntry,onRefresh,onAddDay,onDeleteDay}:{session:any;stats:any;section:AdminSection;setSection:(s:AdminSection)=>void;onLogin:()=>void;onLogout:()=>void;players:any[];days:any[];teams:any[];games:any[];dayPlayers:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void;onOpenDay:(id:number)=>void;onEditDay:(id:number)=>void;onQuickEntry:()=>void;onRefresh:()=>void;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){
- if(!session)return <section className="admin-login"><div className="admin-lock"><Shield size={32}/></div><div className="eyebrow">ЗАКРЫТЫЙ РАЗДЕЛ</div><h2>Панель управления</h2><p>Здесь управляются игроки, игровые дни, составы и статистика лиги.</p><button className="primary-btn" onClick={onLogin}><LogIn size={17}/> Войти в админку</button></section>;
- return <section className="admin-page"><aside className="admin-side"><div className="admin-title"><Shield/><div><b>Панель управления</b><small>{session.user?.email}</small></div></div><button className={section==='overview'?'sel':''} onClick={()=>setSection('overview')}><LayoutDashboard/> Обзор</button><button className={section==='players'?'sel':''} onClick={()=>setSection('players')}><Users/> Игроки</button><button className={section==='days'?'sel':''} onClick={()=>setSection('days')}><CalendarDays/> Игровые дни</button><div className="side-bottom"><button onClick={onRefresh}><RefreshCw/> Обновить</button><button onClick={onLogout}><LogOut/> Выйти</button></div></aside><div className="admin-main">{section==='overview'&&<><div className="admin-header"><div><div className="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Обзор</h1><p>Контроль текущего состояния лиги.</p></div></div><div className="metrics"><Metric icon={<Users/>} label="Игроки" value={stats.players}/><Metric icon={<CalendarDays/>} label="Игровые дни" value={stats.days}/><Metric icon={<Trophy/>} label="Матчи" value={stats.games}/><Metric icon={<CircleUserRound/>} label="Участия" value={stats.participants}/></div><div className="quick-grid"><button className="quick-action" onClick={onQuickEntry}><Trophy/><b>Быстрое заполнение</b><span>Выбрать игру и внести статистику во время паузы</span></button><button onClick={onAdd}><Plus/><b>Добавить игрока</b><span>Создать новую карточку игрока</span></button><button onClick={()=>setSection('players')}><Users/><b>Управление игроками</b><span>Редактирование и статистика</span></button><button onClick={()=>setSection('days')}><CalendarDays/><b>Игровые дни</b><span>Редактирование и составы</span></button></div></>}{section==='players'&&<PlayersAdmin players={players} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>} {section==='days'&&<DaysAdmin days={days} teams={teams} games={games} dayPlayers={dayPlayers} onOpen={onOpenDay} onEdit={onEditDay} onAddDay={onAddDay} onDeleteDay={onDeleteDay} />}</div></section>
+function Admin({session,verified,stats,section,setSection,onLogin,onLogout,players,days,teams,games,dayPlayers,onAdd,onEdit,onDelete,onOpenDay,onEditDay,onQuickEntry,onRefresh,onAddDay,onDeleteDay}:{session:any;verified:boolean;stats:any;section:AdminSection;setSection:(s:AdminSection)=>void;onLogin:()=>void;onLogout:()=>void;players:any[];days:any[];teams:any[];games:any[];dayPlayers:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void;onOpenDay:(id:number)=>void;onEditDay:(id:number)=>void;onQuickEntry:()=>void;onRefresh:()=>Promise<void>;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){
+ const getEngine=()=>window.parent?.frames?.[0] as Engine|null;
+ if(!session || !verified)return <section className="admin-login"><div className="admin-lock"><Shield size={32}/></div><div className="eyebrow">ЗАКРЫТЫЙ РАЗДЕЛ</div><h2>Панель управления</h2><p>Здесь управляются игроки, игровые дни, составы и статистика лиги.</p><button className="primary-btn" onClick={onLogin}><LogIn size={17}/> Войти в админку</button></section>;
+ return <section className="admin-page"><aside className="admin-side"><div className="admin-title"><Shield/><div><b>Панель управления</b><small>{session.user?.email}</small></div></div><button className={section==='overview'?'sel':''} onClick={()=>setSection('overview')}><LayoutDashboard/> Обзор</button><button className={section==='players'?'sel':''} onClick={()=>setSection('players')}><Users/> Игроки</button><button className={section==='days'?'sel':''} onClick={()=>setSection('days')}><CalendarDays/> Игровые дни</button><button className={section==='accounts'?'sel':''} onClick={()=>setSection('accounts')}><CircleUserRound/> Аккаунты и заявки</button><button className={section==='moderation'?'sel':''} onClick={()=>setSection('moderation')}><Trophy/> Проверка статистики</button><div className="side-bottom"><button onClick={onRefresh}><RefreshCw/> Обновить</button><button onClick={onLogout}><LogOut/> Выйти</button></div></aside><div className="admin-main">{section==='overview'&&<><div className="admin-header"><div><div className="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Обзор</h1><p>Контроль текущего состояния лиги.</p></div></div><div className="metrics"><Metric icon={<Users/>} label="Игроки" value={stats.players}/><Metric icon={<CalendarDays/>} label="Игровые дни" value={stats.days}/><Metric icon={<Trophy/>} label="Матчи" value={stats.games}/><Metric icon={<CircleUserRound/>} label="Участия" value={stats.participants}/></div><div className="quick-grid"><button className="quick-action" onClick={onQuickEntry}><Trophy/><b>Быстрое заполнение</b><span>Выбрать игру и внести статистику во время паузы</span></button><button onClick={onAdd}><Plus/><b>Добавить игрока</b><span>Создать новую карточку игрока</span></button><button onClick={()=>setSection('players')}><Users/><b>Управление игроками</b><span>Редактирование и статистика</span></button><button onClick={()=>setSection('days')}><CalendarDays/><b>Игровые дни</b><span>Редактирование и составы</span></button></div></>}{section==='players'&&<PlayersAdmin players={players} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>} {section==='days'&&<DaysAdmin days={days} teams={teams} games={games} dayPlayers={dayPlayers} onOpen={onOpenDay} onEdit={onEditDay} onAddDay={onAddDay} onDeleteDay={onDeleteDay} />}{section==='accounts'&&<AccountRequestsAdmin engine={getEngine()} players={players} onRefresh={onRefresh}/>} {section==='moderation'&&<MatchStatsModeration engine={getEngine()} players={players} days={days} games={games} teams={teams} onRefresh={onRefresh}/>}</div></section>
 }
+
+function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,engine,onLoginSocial,onRefresh}:{session:any;adminVerified:boolean;players:any[];days:any[];games:any[];teams:any[];dayPlayers:any[];engine:any;onLoginSocial:(provider:string)=>Promise<void>;onRefresh:()=>Promise<void>}){
+ const [profile,setProfile]=useState<any>(null),[requests,setRequests]=useState<any[]>([]),[myStats,setMyStats]=useState<any[]>([]),[selected,setSelected]=useState(''),[token,setToken]=useState(''),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const [authMode,setAuthMode]=useState<'login'|'register'>('login'),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[authBusy,setAuthBusy]=useState(false),[authMessage,setAuthMessage]=useState('');
+ const [selectedGame,setSelectedGame]=useState(''),[statDraft,setStatDraft]=useState({goals:0,assists:0,own_goals:0,saves:0,conceded:0,goalkeeper:false});
+ const load=async()=>{
+  if(!session?.user?.id||!engine?.sb){setProfile(null);setRequests([]);setMyStats([]);return;}
+  const [p,r,s]=await Promise.all([
+   engine.sb.from('user_profiles').select('user_id,role,linked_player_id').eq('user_id',session.user.id).maybeSingle(),
+   engine.sb.from('player_link_requests').select('id,player_id,status,note,review_note,created_at,reviewed_at').eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(10),
+   engine.sb.from('game_player_stats').select('id,game_id,game_day_id,player_id,status,moderation_note,created_at').eq('submitted_by',session.user.id).order('created_at',{ascending:false}).limit(30)
+  ]);
+  if(p.error)throw p.error;if(r.error)throw r.error;if(s.error)throw s.error;setProfile(p.data);setRequests(r.data||[]);setMyStats(s.data||[]);
+ };
+ useEffect(()=>{let alive=true;load().catch(e=>alive&&setError(e.message||'Не удалось загрузить кабинет'));return()=>{alive=false}},[session?.user?.id,engine]);
+ const eligibleGames=games.filter(g=>dayPlayers.some(dp=>String(dp.player_id)===String(profile?.linked_player_id)&&String(dp.game_day_id)===String(g.game_day_id)&&(String(dp.team_id)===String(g.team_a_id)||String(dp.team_id)===String(g.team_b_id)))&&!myStats.some(row=>String(row.game_id)===String(g.id)&&row.status!=='needs_correction'));
+ const submitMatchStats=async()=>{
+  if(!profile?.linked_player_id||!selectedGame){setError('Выбери матч.');return;}
+  const game=games.find(g=>String(g.id)===String(selectedGame));if(!game)return;
+  const roster=dayPlayers.find(dp=>String(dp.player_id)===String(profile.linked_player_id)&&String(dp.game_day_id)===String(game.game_day_id)&&(String(dp.team_id)===String(game.team_a_id)||String(dp.team_id)===String(game.team_b_id)));
+  if(!roster){setError('Ты не найден в составе выбранного матча.');return;}
+  for(const [k,v] of Object.entries(statDraft)){if(k!=='goalkeeper'&&(!Number.isSafeInteger(Number(v))||Number(v)<0)){setError('Все числовые показатели должны быть целыми и неотрицательными.');return;}}
+  setBusy(true);setError('');setMessage('');
+  try{
+   const existing=await engine.sb.from('game_player_stats').select('id,status').eq('game_id',game.id).eq('player_id',profile.linked_player_id).maybeSingle();
+   if(existing.error)throw existing.error;
+   const payload={game_id:game.id,game_day_id:game.game_day_id,player_id:profile.linked_player_id,team_id:roster.team_id,goals:Number(statDraft.goals),assists:Number(statDraft.assists),own_goals:Number(statDraft.own_goals),saves:Number(statDraft.saves),conceded:Number(statDraft.conceded),goalkeeper:!!statDraft.goalkeeper};
+   if(existing.data?.status==='needs_correction'){
+    const saved=await engine.sb.rpc('resubmit_match_stat',{p_stat_id:existing.data.id,p_payload:payload});if(saved.error)throw saved.error;
+   }else{
+    if(existing.data)throw new Error('Статистика уже отправлена или сохранена. Если администратор вернул её на исправление, можно отправить исправленную версию.');
+    const saved=await engine.sb.from('game_player_stats').insert({...payload,status:'pending',submitted_by:session.user.id});if(saved.error)throw saved.error;
+   }
+   setMessage('Статистика отправлена на проверку. В рейтинг она попадёт после подтверждения администратором.');await load();
+  }catch(e:any){setError(e?.message||'Не удалось отправить статистику.');}finally{setBusy(false);}
+ };
+ const submit=async()=>{
+  if(!selected||!token.trim()){setError('Выбери себя в списке и введи код приглашения.');return;}
+  setBusy(true);setError('');setMessage('');
+  try{const r=await engine.sb.rpc('request_player_link',{p_player_id:Number(selected),p_invitation_token:token.trim(),p_note:note.trim()||null});if(r.error)throw r.error;setMessage('Заявка отправлена администратору. После проверки привязка появится в кабинете.');setToken('');setNote('');await load();}
+  catch(e:any){setError(e?.message||'Не удалось отправить заявку.');}finally{setBusy(false);}
+ };
+ const authenticateSocial=async(provider:string)=>{setAuthBusy(true);setError('');setAuthMessage('');try{await onLoginSocial(provider);}catch(e:any){setError(e?.message||'Не удалось войти через выбранный сервис.');}finally{setAuthBusy(false);}};
+ const authenticateEmail=async(e:React.FormEvent)=>{e.preventDefault();if(authBusy)return;const email=authEmail.trim();if(!email||!authPassword){setError('Укажи email и пароль.');return;}if(authMode==='register'&&authPassword.length<8){setError('Пароль должен содержать не менее 8 символов.');return;}setAuthBusy(true);setError('');setAuthMessage('');try{if(!engine?.sb)throw new Error('Модуль авторизации ещё не загрузился. Обнови страницу.');if(authMode==='register'){const r=await engine.sb.auth.signUp({email,password:authPassword,options:{emailRedirectTo:window.location.origin+window.location.pathname}});if(r.error)throw r.error;if(r.data?.session){setAuthMessage('Аккаунт создан. Выполняю вход…');await onRefresh();}else{setAuthMessage('Аккаунт создан. Проверь почту и подтверди адрес, затем войди.');setAuthMode('login');}}else{const r=await engine.sb.auth.signInWithPassword({email,password:authPassword});if(r.error)throw r.error;setAuthMessage('Вход выполнен. Загружаю кабинет…');await onRefresh();}}catch(e:any){const msg=String(e?.message||'');setError(/already registered/i.test(msg)?'Этот email уже зарегистрирован. Войди в аккаунт.':/invalid login credentials/i.test(msg)?'Неверный email или пароль.':msg||'Не удалось выполнить вход.');}finally{setAuthBusy(false);}};
+ return <section className="page">
+  <div className="section-head"><div><div className="eyebrow">ЛИЧНЫЙ РАЗДЕЛ</div><h2>Кабинет игрока</h2><p>Привяжи аккаунт к своей карточке в лиге и отправляй статистику после проверки доступа.</p></div></div>
+  {!session?<div className="admin-login"><div className="admin-lock"><CircleUserRound size={32}/></div><h2>{authMode==='login'?'Войти в кабинет':'Создать аккаунт'}</h2><p>Выбери удобный способ входа. Администратор входит отдельно через раздел «Админка».</p>
+   <div className="quick-grid"><button type="button" onClick={()=>authenticateSocial('custom:telegram')} disabled={authBusy}>Войти через Telegram</button></div>
+   <div className="account-auth-divider"><span>или по email</span></div>
+   <form onSubmit={authenticateEmail} className="account-auth-form">
+    <label>Email<input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" required placeholder="name@example.com"/></label>
+    <label>Пароль<input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} autoComplete={authMode==='login'?'current-password':'new-password'} minLength={8} required placeholder="Не менее 8 символов"/></label>
+    <button className="primary-btn full" type="submit" disabled={authBusy}>{authBusy?'Подождите…':authMode==='login'?'Войти по email':'Зарегистрироваться'}</button>
+   </form>
+   <button className="account-auth-switch" type="button" onClick={()=>{setAuthMode(v=>v==='login'?'register':'login');setError('');setAuthMessage('');}}>{authMode==='login'?'Нет аккаунта? Зарегистрироваться':'Уже есть аккаунт? Войти'}</button>
+   {authMessage&&<p className="success">{authMessage}</p>}{error&&<p className="error">{error}</p>}
+  </div>:<div className="admin-card" style={{maxWidth:760,margin:'0 auto'}}>
+   <div className="admin-header"><div><div className="eyebrow">АККАУНТ</div><h2>{session.user.email||session.user.phone||'Социальный аккаунт'}</h2><p>Статус: <b>{adminVerified?'Администратор':profile?.role==='participant'?'Участник':'Гость'}</b></p></div><button className="secondary-btn" onClick={async()=>{await engine.sb.auth.signOut();await onRefresh()}}>Выйти</button></div>
+   {profile?.linked_player_id?<p>Аккаунт привязан к игроку: <b>{players.find(p=>String(p.id)===String(profile.linked_player_id))?.name||'Игрок #'+profile.linked_player_id}</b></p>:<><h3>Привязать карточку игрока</h3><p>Выбери своё имя из списка и введи персональный код приглашения, который выдал администратор.</p>
+    <label>Твоя карточка<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Выбрать игрока</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}{p.position?' — '+p.position:''}</option>)}</select></label>
+    <label>Код приглашения<input value={token} onChange={e=>setToken(e.target.value)} placeholder="Вставь код из приглашения" autoComplete="off"/></label>
+    <label>Комментарий (необязательно)<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={500} placeholder="Дополнительная информация"/></label>
+    <button className="primary-btn" onClick={submit} disabled={busy}>{busy?'Отправляю…':'Отправить заявку'}</button>
+   </>}
+   {message&&<p className="success">{message}</p>}{error&&<p className="error">{error}</p>}
+   {profile?.role==='participant'&&<div style={{marginTop:24}}><h3>Отправить статистику за матч</h3><p>Каждый матч отправляется отдельно. Запись появится в рейтинге только после проверки.</p>
+   <label>Игровой матч<select value={selectedGame} onChange={e=>setSelectedGame(e.target.value)}><option value="">Выбрать матч</option>{eligibleGames.map(g=>{const d=days.find(x=>String(x.id)===String(g.game_day_id));const a=teams.find(x=>String(x.id)===String(g.team_a_id));const b=teams.find(x=>String(x.id)===String(g.team_b_id));return <option key={g.id} value={g.id}>{d?new Date(d.game_date).toLocaleDateString('ru-RU'):'Дата'} · {a?.name||'Команда A'} — {b?.name||'Команда B'}</option>})}</select></label>
+   <div className="quick-grid">{(['goals','assists','own_goals','saves','conceded'] as const).map((k)=><label key={k}>{({goals:'Голы',assists:'Пасы',own_goals:'Автоголы',saves:'Сейвы',conceded:'Пропущено'} as any)[k]}<input type="number" min="0" step="1" value={statDraft[k]} onChange={e=>setStatDraft(v=>({...v,[k]:e.target.value===''?0:Number(e.target.value)}))}/></label>)}</div>
+   <label className="check"><input type="checkbox" checked={statDraft.goalkeeper} onChange={e=>setStatDraft(v=>({...v,goalkeeper:e.target.checked}))}/> Играл вратарём</label>
+   <button className="primary-btn" onClick={submitMatchStats} disabled={busy||!eligibleGames.length}>{busy?'Отправляю…':'Отправить на проверку'}</button>
+   <h3 style={{marginTop:22}}>Моя статистика на проверке</h3>
+   {myStats.length?<div className="admin-list">{myStats.map(row=>{const day=days.find(d=>String(d.id)===String(row.game_day_id));return <div className="admin-day" key={row.id}><div><b>{day?new Date(day.game_date).toLocaleDateString('ru-RU'):'Игровой день'} · матч #{row.game_id}</b><small>{row.status==='pending'?'Ожидает проверки':row.status==='approved'?'Подтверждена':row.status==='rejected'?'Отклонена':'Нужно исправить'}</small>{row.moderation_note&&<small>Комментарий администратора: {row.moderation_note}</small>}</div></div>})}</div>:<p>Отправленных записей пока нет.</p>}
+  </div>}\n   <h3>Мои заявки</h3>{requests.length?<div className="admin-list">{requests.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{new Date(r.created_at).toLocaleString('ru-RU')}</small></div><span>{r.status==='pending'?'На проверке':r.status==='approved'?'Подтверждена':r.status==='rejected'?'Отклонена':'Нужно исправить'}</span>{r.note&&<small>{r.note}</small>}{r.review_note&&<small>Ответ администратора: {r.review_note}</small>}</div>)}</div>:<p>Заявок пока нет.</p>}
+  </div>}
+ </section>;
+}
+function AccountRequestsAdmin({engine,players,onRefresh}:{engine:any;players:any[];onRefresh:()=>Promise<void>}){
+ const [rows,setRows]=useState<any[]>([]),[maxUses,setMaxUses]=useState('1'),[ttl,setTtl]=useState('14'),[busy,setBusy]=useState(false),[invite,setInvite]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const load=async()=>{const r=await engine.sb.from('player_link_requests').select('id,user_id,player_id,status,note,review_note,created_at').eq('status','pending').order('created_at',{ascending:true});if(r.error)throw r.error;setRows(r.data||[])};
+ useEffect(()=>{load().catch(e=>setError(e.message||'Ошибка загрузки'))},[engine]);
+ const create=async()=>{setBusy(true);setError('');setInvite('');try{const r=await engine.sb.rpc('create_invitation',{p_max_uses:Number(maxUses),p_ttl_days:Number(ttl)});if(r.error)throw r.error;setInvite(r.data);setMessage('Код создан. Скопируй и отправь его игроку лично.');}catch(e:any){setError(e.message||'Не удалось создать приглашение')}finally{setBusy(false)}};
+ const decide=async(id:number,decision:string)=>{const note=decision==='needs_correction'?prompt('Что нужно исправить?')||'Нужно уточнить данные':null;setBusy(true);try{const r=await engine.sb.rpc('review_player_link_request',{p_request_id:id,p_decision:decision,p_note:note});if(r.error)throw r.error;await load();await onRefresh()}catch(e:any){setError(e.message||'Не удалось обработать заявку')}finally{setBusy(false)}};
+ return <><div className="admin-header"><div><div className="eyebrow">АККАУНТЫ</div><h1>Приглашения и привязки</h1><p>{rows.length} заявок ожидают проверки.</p></div></div>
+  <div className="admin-card" style={{padding:20,marginBottom:20}}><h3>Создать приглашение</h3><div className="quick-grid"><label>Использований<select value={maxUses} onChange={e=>setMaxUses(e.target.value)}>{[1,2,3,5,10].map(v=><option key={v}>{v}</option>)}</select></label><label>Срок действия<select value={ttl} onChange={e=>setTtl(e.target.value)}><option value="1">1 день</option><option value="7">7 дней</option><option value="14">14 дней</option><option value="30">30 дней</option></select></label></div><button className="primary-btn" onClick={create} disabled={busy}>Создать код</button>{invite&&<p><code>{invite}</code> <button onClick={()=>navigator.clipboard?.writeText(invite)}>Копировать</button></p>}{message&&<p>{message}</p>}{error&&<p className="error">{error}</p>}</div>
+  <h3>Заявки на привязку</h3>{rows.length?<div className="admin-list">{rows.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{r.user_id} · {new Date(r.created_at).toLocaleString('ru-RU')}</small>{r.note&&<small>{r.note}</small>}{r.review_note&&<small>Комментарий: {r.review_note}</small>}</div><div className="day-actions"><button className="primary-mini" disabled={busy} onClick={()=>decide(r.id,'approved')}>Подтвердить</button><button disabled={busy} onClick={()=>decide(r.id,'needs_correction')}>Уточнить</button><button disabled={busy} onClick={()=>decide(r.id,'rejected')}>Отклонить</button></div></div>)}</div>:<p>Новых заявок нет.</p>}
+ </>;
+}
+
+
+function MatchStatsModeration({engine,players,days,games,teams,onRefresh}:{engine:any;players:any[];days:any[];games:any[];teams:any[];onRefresh:()=>Promise<void>}){
+ const [rows,setRows]=useState<any[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const load=async()=>{const r=await engine.sb.from('game_player_stats').select('*').eq('status','pending').order('game_day_id',{ascending:false});if(r.error)throw r.error;setRows(r.data||[])};
+ useEffect(()=>{load().catch(e=>setError(e.message||'Не удалось загрузить очередь'))},[engine]);
+ const review=async(id:number,decision:string)=>{
+  const note=decision==='needs_correction'?prompt('Что нужно исправить?')||'Нужно исправить данные':null;
+  setBusy(true);setError('');setMessage('');
+  try{const r=await engine.sb.rpc('review_match_stat',{p_stat_id:id,p_decision:decision,p_note:note});if(r.error)throw r.error;await load();await onRefresh();setMessage('Решение сохранено.');}
+  catch(e:any){setError(e?.message||'Не удалось обработать запись.');}finally{setBusy(false);}
+ };
+ const groups=new Map<string,any[]>();
+ rows.forEach(r=>{const key=String(r.game_day_id)+'-'+String(r.game_id);groups.set(key,[...(groups.get(key)||[]),r]);});
+ return <><div className="admin-header"><div><div className="eyebrow">МОДЕРАЦИЯ</div><h1>Статистика на проверке</h1><p>{rows.length} записей ожидают подтверждения.</p></div><button onClick={()=>load()}>Обновить</button></div>
+ {error&&<p className="error">{error}</p>}{message&&<p>{message}</p>}
+ {rows.length?Array.from(groups.entries()).map(([key,list])=>{const first=list[0],day=days.find(d=>String(d.id)===String(first.game_day_id)),game=games.find(g=>String(g.id)===String(first.game_id)),a=teams.find(t=>String(t.id)===String(game?.team_a_id)),b=teams.find(t=>String(t.id)===String(game?.team_b_id));return <div className="admin-card" key={key} style={{padding:18,marginBottom:18}}>
+ <h3>{day?new Date(day.game_date).toLocaleDateString('ru-RU'):'Игровой день'} · {a?.name||'Команда A'} — {b?.name||'Команда B'}</h3>
+ {list.map(r=>{const p=players.find(x=>String(x.id)===String(r.player_id));return <div className="admin-day" key={r.id}><div><b>{p?.name||'Игрок #'+r.player_id}</b><small>Голы: {r.goals||0} · Пасы: {r.assists||0} · Автоголы: {r.own_goals||0} · Сейвы: {r.saves||0} · Пропущено: {r.conceded||0}</small><small>Отправил: {r.submitted_by||'—'}</small></div><div className="day-actions"><button className="primary-mini" disabled={busy} onClick={()=>review(r.id,'approved')}>Подтвердить</button><button disabled={busy} onClick={()=>review(r.id,'needs_correction')}>На исправление</button><button disabled={busy} onClick={()=>review(r.id,'rejected')}>Отклонить</button></div></div>})}
+ </div>}):<p>Непроверенных записей нет.</p>}
+ </>;
+}
+
 function Metric({icon,label,value}:{icon:any;label:string;value:number}){return <div className="metric"><span>{icon}</span><small>{label}</small><strong>{value}</strong></div>}
 function PlayersAdmin({players,onAdd,onEdit,onDelete}:{players:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void}){return <><div className="admin-header row"><div><div className="eyebrow">УПРАВЛЕНИЕ</div><h1>Игроки</h1><p>{players.length} игроков в базе.</p></div><button className="primary-btn" onClick={onAdd}><Plus/> Добавить игрока</button></div><div className="admin-list">{players.map(p=><div className="admin-player" key={p.id}><div className="avatar">{p.name?.slice(0,1)||'?'}</div><div className="ap-main"><b>{p.name}</b><small>{p.position||'Позиция не указана'}{p.is_goalkeeper?' · Вратарь':''}</small></div><button className="icon-btn" onClick={()=>onEdit(p)}><Pencil/></button><button className="icon-btn danger-icon" onClick={()=>onDelete(p.id)}><Trash2/></button></div>)}</div></>}
 function DaysAdmin({days,teams,games,dayPlayers,onOpen,onEdit,onAddDay,onDeleteDay}:{days:any[];teams:any[];games:any[];dayPlayers:any[];onOpen:(id:number)=>void;onEdit:(id:number)=>void;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){return <><div className="admin-header row"><div><div className="eyebrow">УПРАВЛЕНИЕ</div><h1>Игровые дни</h1><p>Редактирование дат, команд, матчей, составов и статистики.</p></div><button className="primary-btn" onClick={onAddDay}><Plus/> Добавить игровой день</button></div><div className="admin-list">{days.map(d=>{const ts=teams.filter(t=>t.game_day_id===d.id),gs=games.filter(g=>g.game_day_id===d.id),ps=dayPlayers.filter(p=>p.game_day_id===d.id);return <div className="admin-day" key={d.id}><div><span className="day-kicker">{dayName(d.game_date)}</span><h3>{fmtDate(d.game_date)} · {d.place||'Без места'}</h3><small>{d.game_time||'—'} · {ts.length} команд · {gs.length} матчей · {ps.length} участников</small></div><div className="day-actions"><button onClick={()=>onOpen(d.id)}>Открыть</button><button className="primary-mini" onClick={()=>onEdit(d.id)}><Pencil size={15}/> Редактировать</button><button className="icon-btn danger-icon" onClick={()=>onDeleteDay(d.id)} title="Удалить игровой день" aria-label={`Удалить игровой день ${fmtDate(d.game_date)}`}><Trash2 size={17}/></button></div></div>})}</div></>}
@@ -625,7 +782,8 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
     if(!gameDraft.length){setError('Добавь хотя бы одну игру.');return;}
     if(gameDraft.some(g=>!g.team_a_id||!g.team_b_id||String(g.team_a_id)===String(g.team_b_id)||!teamDraft.some(t=>String(t.id)===String(g.team_a_id))||!teamDraft.some(t=>String(t.id)===String(g.team_b_id)))){setError('В каждой игре должны быть две разные существующие команды.');return;}
     for(let i=0;i<gameDraft.length;i++){const g=gameDraft[i];if(!isNonNegativeInteger(g.score_a)||!isNonNegativeInteger(g.score_b)){setError(`Проверь счёт в игре №${i+1}: нужны целые неотрицательные числа.`);return;}}
-    for(const x of playerDraft){if(!x.teamId)continue;for(const [key,label] of [['goals','голы'],['assists','передачи'],['conceded','пропущенные мячи'],['ownGoals','автоголы'],['saves','сейвы']] as any){if(!isNonNegativeInteger(x[key]??0)){setError(`У игрока ${players.find(p=>p.id===x.playerId)?.name||x.playerId} поле «${label}» должно быть целым неотрицательным числом.`);return;}}}
+    const statFields:Array<['goals'|'assists'|'conceded'|'ownGoals'|'saves',string]>=[['goals','голы'],['assists','передачи'],['conceded','пропущенные мячи'],['ownGoals','автоголы'],['saves','сейвы']];
+    for(const x of playerDraft){if(!x.teamId)continue;for(const [key,label] of statFields){if(!isNonNegativeInteger(x[key]??0)){setError(`У игрока ${players.find(p=>p.id===x.playerId)?.name||x.playerId} поле «${label}» должно быть целым неотрицательным числом.`);return;}}}
     const dayCurrent=dayPlayers.filter(x=>String(x.game_day_id)===String(dayId));
     const dailyRows=playerDraft.filter(x=>x.teamId).map(x=>({game_day_id:dayId,player_id:x.playerId,team_id:Number(x.teamId),goals:Number(x.goals)||0,assists:Number(x.assists)||0,conceded:Number(x.conceded)||0,own_goals:Number(x.ownGoals)||0,saves:Number(x.saves)||0,goalkeeper:!!x.goalkeeper}));
     const oldByPlayer=new Map<string,any>(dayCurrent.map(x=>[String(x.player_id),x]));
@@ -651,7 +809,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
         engine.sb.from('game_day_players').select('*').eq('game_day_id',dayId)
       ]);
       if(matchRes.error)throw matchRes.error;if(dayRes.error)throw dayRes.error;
-      const matchRowsBefore=matchRes.data||[];const dayRowsBefore=dayRes.data||[];
+      const matchRowsBefore:any[]=matchRes.data||[];const dayRowsBefore:any[]=dayRes.data||[];
       let clearMatchDetails=false;
       if(dayStatsChanged&&matchRowsBefore.length){
         const ok=window.confirm('В этом дне есть статистика по отдельным матчам. Ты изменяешь итоговую статистику дня вручную. Чтобы данные не конфликтовали, поматчевые записи этого дня будут удалены, а дневная статистика сохранится как итоговая. Продолжить?');
@@ -757,7 +915,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
 function PlayerProfileModal({player,days,teams,dayPlayers,icons,onClose}:{player:any;days:any[];teams:any[];dayPlayers:any[];icons:Record<string,string>;onClose:()=>void}){
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>window.parent?.frames?.[0] as any;
-  const entries=getEngine()?.playerDayEntries?.(player)||dayPlayers.filter(x=>String(x.player_id)===String(player.id)).filter((x,i,a)=>a.findIndex(y=>String(y.game_day_id)===String(x.game_day_id))===i);
+  const entries:any[]=getEngine()?.playerDayEntries?.(player)||dayPlayers.filter(x=>String(x.player_id)===String(player.id)).filter((x,i,a)=>a.findIndex(y=>String(y.game_day_id)===String(x.game_day_id))===i);
   const playedDays=entries.length;
   const canonicalTotals=getEngine()?.playerTotals?.(player);
   const totals={
@@ -794,17 +952,23 @@ function PlayerProfileModal({player,days,teams,dayPlayers,icons,onClose}:{player
   </div>;
 }
 
-function LoginModal({onClose,onLogin}:{onClose:()=>void;onLogin:(e:string,p:string)=>Promise<void>}){
-  const[e,setE]=useState(''),[p,setP]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
-  const submit=async()=>{if(busy)return;setErr('');setBusy(true);try{await onLogin(e,p)}catch(x:any){setErr(x?.message||'Не удалось войти в админку.')}finally{setBusy(false)}};
+function LoginModal({onClose,onLogin,onVerify}:{onClose:()=>void;onLogin:(e:string,p:string)=>Promise<void>;onVerify:(code:string)=>Promise<void>}){
+  const[e,setE]=useState(''),[p,setP]=useState(''),[code,setCode]=useState(''),[stage,setStage]=useState<'password'|'code'>('password'),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
+  const submit=async()=>{if(busy)return;setErr('');setBusy(true);try{await onLogin(e,p);setStage('code')}catch(x:any){setErr(x?.message||'Не удалось войти в админку.')}finally{setBusy(false)}};
+  const verify=async()=>{if(busy)return;setErr('');setBusy(true);try{await onVerify(code)}catch(x:any){setErr(x?.message||'Не удалось подтвердить код.')}finally{setBusy(false)}};
   return <div className="modal-backdrop" onMouseDown={x=>{if(x.target===x.currentTarget)onClose()}}><div className="modal-card small">
-    <button className="modal-x" onClick={onClose}><X/></button><div className="modal-icon"><Shield/></div><div className="eyebrow">АДМИНИСТРАТОР</div><h2>Вход в панель</h2>
-    <form onSubmit={x=>{x.preventDefault();submit()}}>
-      <label>Email<input value={e} onChange={x=>setE(x.target.value)} type="email" autoComplete="username" autoFocus placeholder="admin@example.com"/></label>
+    <button className="modal-x" onClick={onClose}><X/></button><div className="modal-icon"><Shield/></div><div className="eyebrow">АДМИНИСТРАТОР</div><h2>{stage==='password'?'Вход в панель':'Подтверждение входа'}</h2>
+    {stage==='password'?<form onSubmit={x=>{x.preventDefault();submit()}}>
+      <label>Email<input value={e} onChange={x=>setE(x.target.value)} type="email" autoComplete="username" autoFocus placeholder="Email администратора"/></label>
       <label>Пароль<input value={p} onChange={x=>setP(x.target.value)} type="password" autoComplete="current-password" placeholder="Введите пароль"/></label>
       {err&&<div className="error">{err}</div>}
-      <button className="primary-btn full" type="submit" disabled={busy}>{busy?'Выполняю вход…':'Войти в админку'}</button>
-    </form>
+      <button className="primary-btn full" type="submit" disabled={busy}>{busy?'Выполняю вход…':'Продолжить'}</button>
+    </form>:<form onSubmit={x=>{x.preventDefault();verify()}}>
+      <p>Отправила шестизначный код на Email администратора. Он действует 5 минут.</p>
+      <label>Код подтверждения<input value={code} onChange={x=>setCode(x.target.value.replace(/\D/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000" maxLength={6}/></label>
+      {err&&<div className="error">{err}</div>}
+      <button className="primary-btn full" type="submit" disabled={busy||code.length!==6}>{busy?'Проверяю…':'Подтвердить и открыть админку'}</button>
+    </form>}
   </div></div>
 }
 function PlayerModal({player,onClose,onSave}:{player?:any;onClose:()=>void;onSave:(x:any,y?:string,z?:boolean)=>Promise<void>}){const[p,setP]=useState({...player});const[n,setN]=useState('');const[pos,setPos]=useState('');const[gk,setGk]=useState(false);const isEdit=!!player;return <div className="modal-backdrop"><div className="modal-card"><button className="modal-x" onClick={onClose}><X/></button><div className="eyebrow">ИГРОК</div><h2>{isEdit?'Редактирование игрока':'Новый игрок'}</h2>{isEdit?<><label>Имя<input value={p.name||''} onChange={e=>setP({...p,name:e.target.value})}/></label><label>Позиция<input value={p.position||''} onChange={e=>setP({...p,position:e.target.value})}/></label><label className="check"><input type="checkbox" checked={!!p.is_goalkeeper} onChange={e=>setP({...p,is_goalkeeper:e.target.checked})}/> Вратарь</label><button className="primary-btn full" onClick={()=>onSave(p)}>Сохранить</button></>:<><label>Имя<input value={n} onChange={e=>setN(e.target.value)} placeholder="Иван Иванов"/></label><label>Позиция<input value={pos} onChange={e=>setPos(e.target.value)} placeholder="Защитник"/></label><label className="check"><input type="checkbox" checked={gk} onChange={e=>setGk(e.target.checked)}/> Вратарь</label><button className="primary-btn full" onClick={()=>onSave(n,pos,gk)}>Добавить</button></>}</div></div>}
