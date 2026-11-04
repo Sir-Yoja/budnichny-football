@@ -521,3 +521,52 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .account-profile-header .account-player-title h2{font-size:22px}
  .account-profile-header .account-logout-btn{padding:8px 10px;font-size:12px}
 }
+
+/* Финальная полировка шапки кабинета по скриншоту */
+.account-card>.account-profile-header{
+  box-sizing:border-box;
+  align-items:flex-start;
+  padding:28px 28px 24px!important;
+  margin:0!important;
+  gap:20px;
+  border-bottom:1px solid rgba(255,255,255,.09);
+}
+.account-card>.account-profile-header .account-identity{padding:0;gap:8px}
+.account-card>.account-profile-header .account-player-title{margin-top:2px}
+.account-card>.account-profile-header .account-player-title h2{font-size:30px;line-height:1.2;letter-spacing:-.025em}
+.account-card>.account-profile-header .account-player-subtitle{margin-top:1px}
+.account-card>.account-profile-header .account-contact-details{margin-top:8px;padding-top:13px;gap:8px}
+.account-card>.account-profile-header .account-logout-btn{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-height:40px!important;
+  padding:0 18px!important;
+  margin:0!important;
+  border:1px solid rgba(207,184,66,.52)!important;
+  border-radius:10px!important;
+  background:linear-gradient(180deg,rgba(207,184,66,.16),rgba(207,184,66,.08))!important;
+  color:#e5cf72!important;
+  box-shadow:0 3px 12px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.06)!important;
+  font:700 12px 'Manrope',Arial,sans-serif!important;
+  letter-spacing:.01em;
+  line-height:1!important;
+  cursor:pointer;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.account-card>.account-profile-header .account-logout-btn:hover{
+  background:rgba(207,184,66,.22)!important;
+  border-color:rgba(207,184,66,.82)!important;
+  color:#fff0ad!important;
+  box-shadow:0 5px 16px rgba(0,0,0,.22)!important;
+  transform:translateY(-1px);
+}
+.account-card>.account-profile-header .account-logout-btn:active{transform:translateY(0)}
+.account-card>.account-profile-header .account-logout-btn:focus-visible{outline:2px solid #cfb842!important;outline-offset:3px}
+@media(max-width:600px){
+ .account-card>.account-profile-header{padding:22px 18px 20px!important;gap:12px}
+ .account-card>.account-profile-header .account-player-title h2{font-size:23px}
+ .account-card>.account-profile-header .account-logout-btn{min-height:36px!important;padding:0 12px!important;font-size:11px!important}
+}
