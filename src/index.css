@@ -500,3 +500,24 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .account-requests-section .admin-day>span{justify-self:start}
  .account-stat-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Шапка личного кабинета: в центре внимания карточка игрока, не способ входа */
+.account-profile-header{align-items:flex-start;gap:18px;padding-bottom:20px;margin-bottom:20px}
+.account-profile-header .account-identity{display:grid;gap:7px;flex:1;min-width:0}
+.account-profile-header .account-player-title{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-width:0}
+.account-profile-header .account-player-title h2{margin:0;font-size:clamp(23px,3.5vw,30px);line-height:1.15;overflow-wrap:anywhere;color:#f4f7f8}
+.account-role-badge{display:inline-flex;align-items:center;min-height:25px;padding:4px 10px;border:1px solid rgba(255,255,255,.15);border-radius:999px;background:rgba(255,255,255,.055);color:#d2dce1;font-size:11px;font-weight:800;white-space:nowrap}
+.account-role-badge.account-role-admin{border-color:rgba(207,184,66,.48);background:rgba(207,184,66,.12);color:#e3ca61}
+.account-profile-header .account-player-subtitle{margin:0;color:#91a5b1;font-size:13px}
+.account-contact-details{display:grid;gap:7px;margin-top:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}
+.account-contact-caption{color:#8196a2;font-size:10px;font-weight:800;letter-spacing:.09em}
+.account-contact-row{display:flex;align-items:center;gap:9px;min-width:0;color:#c0cdd3;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.account-contact-row>span:first-child{display:inline-flex;align-items:center;justify-content:center;flex:0 0 18px;width:18px;color:#cfb842;font-size:14px}
+.account-contact-muted{color:#8196a2}
+.account-profile-header .account-logout-btn{flex:0 0 auto;white-space:nowrap}
+@media(max-width:600px){
+ .account-profile-header{gap:12px}
+ .account-profile-header .account-player-title{gap:8px}
+ .account-profile-header .account-player-title h2{font-size:22px}
+ .account-profile-header .account-logout-btn{padding:8px 10px;font-size:12px}
+}
