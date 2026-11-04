@@ -260,7 +260,7 @@ alter table public.invitation_tokens enable row level security;
 alter table public.player_link_requests enable row level security;
 alter table public.admin_email_challenges enable row level security;
 revoke all on public.user_profiles,public.invitation_tokens,public.player_link_requests,public.admin_email_challenges from anon,authenticated;
-grant select,insert,update,delete on public.user_profiles,public.player_link_requests,public.invitation_tokens to authenticated;
+grant select on public.user_profiles,public.player_link_requests,public.invitation_tokens to authenticated;
 grant execute on function public.create_invitation(integer,integer) to authenticated;
 grant execute on function public.request_player_link(bigint,text,text) to authenticated;
 grant execute on function public.review_player_link_request(bigint,text,text) to authenticated;
@@ -270,17 +270,14 @@ drop policy if exists user_profiles_read_self_or_admin on public.user_profiles;
 create policy user_profiles_read_self_or_admin on public.user_profiles for select to authenticated
  using(user_id=auth.uid() or public.is_site_admin());
 drop policy if exists user_profiles_admin_manage on public.user_profiles;
-create policy user_profiles_admin_manage on public.user_profiles for all to authenticated
- using(public.is_site_admin()) with check(public.is_site_admin());
+drop policy if exists user_profiles_admin_manage on public.user_profiles;
 drop policy if exists link_requests_read_own_or_admin on public.player_link_requests;
 create policy link_requests_read_own_or_admin on public.player_link_requests for select to authenticated
  using(user_id=auth.uid() or public.is_site_admin());
 drop policy if exists link_requests_admin_manage on public.player_link_requests;
-create policy link_requests_admin_manage on public.player_link_requests for all to authenticated
- using(public.is_site_admin()) with check(public.is_site_admin());
+drop policy if exists link_requests_admin_manage on public.player_link_requests;
 drop policy if exists invitations_admin_manage on public.invitation_tokens;
-create policy invitations_admin_manage on public.invitation_tokens for all to authenticated
- using(public.is_site_admin()) with check(public.is_site_admin());
+create policy invitations_admin_read on public.invitation_tokens for select to authenticated using(public.is_site_admin());
 
 -- Remove legacy permissive policies: PostgreSQL combines permissive policies with OR.
 do $$
@@ -300,17 +297,19 @@ end $$;
 grant usage,select on all sequences in schema public to authenticated;
 
 -- Public league data; unapproved participant submissions are never public.
-do $$
+do $
 declare t text;
 begin
  foreach t in array array['game_day_players','game_days','games','match_players','matches','players','teams'] loop
   execute format('create policy %I on public.%I for select to anon,authenticated using(true)',t||'_public_read',t);
-  execute format('create policy %I on public.%I for all to authenticated using(public.is_site_admin()) with check(public.is_site_admin())',t||'_admin_manage',t);
+  execute format('create policy %I on public.%I for insert to authenticated with check(public.is_site_admin())',t||'_admin_insert',t);
+  execute format('create policy %I on public.%I for update to authenticated using(public.is_site_admin()) with check(public.is_site_admin())',t||'_admin_update',t);
+  execute format('create policy %I on public.%I for delete to authenticated using(public.is_site_admin())',t||'_admin_delete',t);
  end loop;
-end $$;
-create policy game_player_stats_public_approved on public.game_player_stats for select to anon,authenticated using(status='approved');
-create policy game_player_stats_admin_manage on public.game_player_stats for all to authenticated using(public.is_site_admin()) with check(public.is_site_admin());
-create policy game_player_stats_participant_read_own on public.game_player_stats for select to authenticated using(submitted_by=auth.uid());
+end $;
+create policy game_player_stats_public_approved on public.game_player_stats for select to anon using(status='approved');
+create policy game_player_stats_authenticated_read on public.game_player_stats for select to authenticated
+ using(status='approved' or submitted_by=auth.uid() or public.is_site_admin());
 create policy game_player_stats_participant_submit on public.game_player_stats for insert to authenticated
  with check(status='pending' and submitted_by=auth.uid()
   and goals>=0 and assists>=0 and own_goals>=0 and saves>=0 and conceded>=0
@@ -320,6 +319,9 @@ create policy game_player_stats_participant_submit on public.game_player_stats f
    and game_player_stats.team_id in (g.team_a_id,g.team_b_id))
   and exists(select 1 from public.game_day_players dp where dp.game_day_id=game_player_stats.game_day_id
    and dp.player_id=game_player_stats.player_id and dp.team_id=game_player_stats.team_id));
+create policy game_player_stats_admin_delete on public.game_player_stats for delete to authenticated
+ using(public.is_site_admin());
+revoke update on public.game_player_stats from authenticated;
 
 -- Admin-only image writes. Review all existing Storage policies and bucket visibility before rollout.
 drop policy if exists game_day_images_insert_authenticated on storage.objects;
