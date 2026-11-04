@@ -14,7 +14,7 @@ async function digest(code:string,pepper:string){
 }
 function equal(a:string,b:string){if(a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0;}
 function newCode(){const b=new Uint32Array(1);crypto.getRandomValues(b);return String(b[0]%1000000).padStart(6,'0');}
-function getSessionId(jwt:string){try{const part=jwt.split('.')[1];if(!part)return null;const payload=JSON.parse(atob(part.replace(/-/g,'+').replace(/_/g,'/')));return typeof payload.session_id==='string'?payload.session_id:null;}catch{return null;}}
+function getSessionId(jwt:string){try{const part=jwt.split('.')[1];if(!part)return null;const encoded=part.replace(/-/g,'+').replace(/_/g,'/');const payload=JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length/4)*4,'=')));return typeof payload.session_id==='string'?payload.session_id:null;}catch{return null;}}
 
 Deno.serve(async(req)=>{
  if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
