@@ -531,7 +531,7 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
  return <section className="page">
   <div className="section-head"><div><div className="eyebrow">ЛИЧНЫЙ РАЗДЕЛ</div><h2>Кабинет игрока</h2><p>Привяжи аккаунт к своей карточке в лиге и отправляй статистику после проверки доступа.</p></div></div>
   {!session?<div className="admin-login"><div className="admin-lock"><CircleUserRound size={32}/></div><h2>{authMode==='login'?'Войти в кабинет':'Создать аккаунт'}</h2><p>Выбери удобный способ входа. Администратор входит отдельно через раздел «Админка».</p>
-   <div className="quick-grid"><button type="button" onClick={()=>authenticateSocial('custom:vk')} disabled={authBusy}>Войти через VK</button><button type="button" onClick={()=>authenticateSocial('custom:telegram')} disabled={authBusy}>Войти через Telegram</button></div>
+   <div className="quick-grid"><button type="button" onClick={()=>authenticateSocial('custom:telegram')} disabled={authBusy}>Войти через Telegram</button></div>
    <div className="account-auth-divider"><span>или по email</span></div>
    <form onSubmit={authenticateEmail} className="account-auth-form">
     <label>Email<input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} autoComplete="email" required placeholder="name@example.com"/></label>
