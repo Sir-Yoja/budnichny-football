@@ -456,3 +456,38 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .account-submit-btn{margin-top:4px;min-height:46px}
 @media(max-width:760px){.account-match-selectors{grid-template-columns:1fr}.account-stat-fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:480px){.account-stat-submit{padding:14px}.account-stat-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.account-selected-match>small{width:100%;margin-left:0}}
+
+/* Лаконичная подача кабинета в фирменной палитре БФ */
+.account-card{max-width:760px;margin:0 auto;border:1px solid rgba(207,184,66,.18);border-radius:18px;background:linear-gradient(155deg,rgba(13,39,54,.97),rgba(6,21,31,.98));box-shadow:0 18px 48px rgba(0,0,0,.2)}
+.account-profile-header{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.09)}
+.account-profile-header h2{margin:3px 0 5px;font-size:clamp(19px,3vw,25px);letter-spacing:-.025em}
+.account-profile-header p{margin:0;color:#a9bbc5;font-size:13px}
+.account-profile-header p b{color:#cfb842}
+.account-card>h3{margin:24px 0 10px;font-size:17px;color:#f1f5f6}
+.account-card>p{color:#b4c2ca;font-size:13px;line-height:1.55}
+.account-card>label:not(.account-goalkeeper-check){display:grid;gap:7px;margin:12px 0;color:#d2dce1;font-size:13px;font-weight:700}
+.account-card>label:not(.account-goalkeeper-check) input,.account-card>label:not(.account-goalkeeper-check) select,.account-card>label:not(.account-goalkeeper-check) textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:10px;background:#091a25;color:#f4f7f8;font:500 14px Manrope,Arial,sans-serif;box-sizing:border-box}
+.account-card>label:not(.account-goalkeeper-check) input:focus,.account-card>label:not(.account-goalkeeper-check) select:focus,.account-card>label:not(.account-goalkeeper-check) textarea:focus{outline:2px solid rgba(207,184,66,.35);border-color:#cfb842}
+.account-stat-submit{margin-top:22px;padding:18px;border:1px solid rgba(207,184,66,.2);border-radius:14px;background:rgba(3,15,23,.42)}
+.account-stat-heading h3{font-size:18px;letter-spacing:-.02em}
+.account-match-selectors{gap:12px;margin:16px 0}
+.account-match-selectors label>span{font-size:11px;text-transform:uppercase}
+.account-match-selectors select{min-height:46px;border-color:rgba(255,255,255,.15);background:#0b202d}
+.account-stat-fields{gap:8px}
+.account-stat-field{gap:7px;padding:10px 9px;border-color:rgba(255,255,255,.075);background:rgba(255,255,255,.025)}
+.account-stat-icon{gap:6px;font-size:11px;white-space:nowrap}
+.account-stat-icon img{width:28px;height:28px;flex-basis:28px;object-fit:contain;filter:drop-shadow(0 2px 4px rgba(0,0,0,.25))}
+.account-stat-field input{height:40px;border-color:rgba(255,255,255,.12);background:#081923}
+.account-submit-btn{width:100%;margin-top:12px;border-radius:11px;font-weight:800;letter-spacing:.01em}
+.account-submit-btn:disabled{opacity:.45;cursor:not-allowed}
+.account-card .admin-list{display:grid;gap:8px}
+.account-card .admin-day{border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.025)}
+.account-card .success{padding:10px 12px;border:1px solid rgba(91,177,129,.25);border-radius:9px;background:rgba(45,125,81,.1);font-size:13px}
+.account-card .error{padding:10px 12px;border:1px solid rgba(215,115,115,.25);border-radius:9px;background:rgba(150,48,48,.1);font-size:13px}
+@media(max-width:600px){
+ .account-card{padding:16px!important;border-radius:14px}
+ .account-profile-header{align-items:flex-start}
+ .account-stat-submit{padding:14px}
+ .account-stat-icon{white-space:normal;flex-wrap:wrap}
+ .account-stat-field{padding:9px}
+}
