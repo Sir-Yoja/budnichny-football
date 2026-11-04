@@ -417,3 +417,13 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .editor-remove-player:hover{background:rgba(120,38,38,.28)}
 .editor-roster-team .editor-player{min-width:0}
 @media(max-width:600px){.editor-roster-team{padding:12px}.editor-roster-team-head h4{font-size:16px}.editor-roster-team .editor-player-head{gap:10px;flex-wrap:wrap}.editor-remove-player{font-size:11px}}
+
+/* Кабинет: формы входа и регистрации */
+.account-auth-divider{display:flex;align-items:center;gap:12px;margin:22px 0 16px;color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.account-auth-divider:before,.account-auth-divider:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.14)}
+.account-auth-form{display:grid;gap:14px;text-align:left}
+.account-auth-form label{display:grid;gap:7px;color:#c5d0d7;font-size:13px;font-weight:700}
+.account-auth-form input{width:100%;min-height:46px;padding:11px 13px;border:1px solid rgba(255,255,255,.16);border-radius:10px;background:#0b1b25;color:#f4f7fa;font:500 14px Manrope,Arial,sans-serif;box-sizing:border-box}
+.account-auth-form input:focus{outline:2px solid rgba(207,184,66,.55);outline-offset:1px;border-color:#cfb842}
+.account-auth-switch{display:block;margin:16px auto 0;padding:8px 10px;border:0;background:transparent;color:#cfb842;font:700 13px Manrope,Arial,sans-serif;cursor:pointer}
+.account-auth-switch:hover{text-decoration:underline}
