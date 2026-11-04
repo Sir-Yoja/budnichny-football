@@ -144,7 +144,7 @@ end; $$;
 -- Atomic, one-time challenge consumption. Only service_role may call this RPC.
 create or replace function public.consume_admin_email_challenge(p_user_id uuid,p_code_hash text)
 returns text language plpgsql security definer set search_path=''
-as $
+as $$
 declare c public.admin_email_challenges%rowtype;
 begin
  select * into c from public.admin_email_challenges
@@ -158,14 +158,14 @@ begin
  update public.admin_email_challenges set verified_at=now() where id=c.id and verified_at is null;
  if not found then return 'expired'; end if;
  return 'verified';
-end; $;
+end; $$;
 revoke all on function public.consume_admin_email_challenge(uuid,text) from public,anon,authenticated;
 grant execute on function public.consume_admin_email_challenge(uuid,text) to service_role;
 
 
 create or replace function public.resubmit_match_stat(p_stat_id bigint,p_payload jsonb)
 returns void language plpgsql security definer set search_path=''
-as $
+as $$
 declare old public.game_player_stats%rowtype; me uuid:=auth.uid();
 begin
  if me is null then raise exception 'authentication_required' using errcode='42501'; end if;
@@ -184,18 +184,18 @@ begin
   goalkeeper=coalesce((p_payload->>'goalkeeper')::boolean,false),
   status='pending'
  where id=p_stat_id;
-end; $;
+end; $$;
 revoke all on function public.resubmit_match_stat(bigint,jsonb) from public,anon;
 grant execute on function public.resubmit_match_stat(bigint,jsonb) to authenticated;
 
 create or replace function public.revoke_invitation(p_invitation_id bigint)
 returns void language plpgsql security definer set search_path=''
-as $
+as $$
 begin
  if not public.is_site_admin() then raise exception 'admin_required' using errcode='42501'; end if;
  update public.invitation_tokens set revoked_at=now() where id=p_invitation_id and revoked_at is null;
  if not found then raise exception 'invitation_not_found_or_revoked'; end if;
-end; $;
+end; $$;
 revoke all on function public.revoke_invitation(bigint) from public,anon;
 grant execute on function public.revoke_invitation(bigint) to authenticated;
 
