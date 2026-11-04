@@ -414,10 +414,6 @@ export default function App(){
 }
 
 function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[];dayPlayers:any[];games:any[];onOpen:(id:number)=>void;ready:boolean}){
- const linkedPlayer=profile?.linked_player_id?players.find(p=>String(p.id)===String(profile.linked_player_id)):null;
- const accountPlayerName=linkedPlayer?.name|| (profile?.linked_player_id?'Игрок #'+profile.linked_player_id:'Карточка игрока не привязана');
- const authProviders=[...(Array.isArray(session?.user?.app_metadata?.providers)?session.user.app_metadata.providers:[]),session?.user?.app_metadata?.provider,...(Array.isArray(session?.user?.identities)?session.user.identities.map((identity:any)=>identity.provider):[])].filter(Boolean).map((provider:any)=>String(provider).toLowerCase());
- const telegramConnected=authProviders.some((provider:string)=>provider.includes('telegram'))||!!(session?.user?.user_metadata?.telegram_username||session?.user?.user_metadata?.telegram_id);
  return <section className="page">
    <div className="hero hero-public"><div className="hero-inner">
      <h1 className="hero-main-title" data-text="БУДНИЧНЫЙ ФУТБОЛ"><span>БУДНИЧНЫЙ</span><span>ФУТБОЛ</span></h1>
@@ -537,6 +533,10 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
  };
  const authenticateSocial=async(provider:string)=>{setAuthBusy(true);setError('');setAuthMessage('');try{await onLoginSocial(provider);}catch(e:any){setError(e?.message||'Не удалось войти через выбранный сервис.');}finally{setAuthBusy(false);}};
  const authenticateEmail=async(e:React.FormEvent)=>{e.preventDefault();if(authBusy)return;const email=authEmail.trim();if(!email||!authPassword){setError('Укажи email и пароль.');return;}if(authMode==='register'&&authPassword.length<8){setError('Пароль должен содержать не менее 8 символов.');return;}setAuthBusy(true);setError('');setAuthMessage('');try{if(!engine?.sb)throw new Error('Модуль авторизации ещё не загрузился. Обнови страницу.');if(authMode==='register'){const r=await engine.sb.auth.signUp({email,password:authPassword,options:{emailRedirectTo:window.location.origin+window.location.pathname}});if(r.error)throw r.error;if(r.data?.session){setAuthMessage('Аккаунт создан. Выполняю вход…');await onRefresh();}else{setAuthMessage('Аккаунт создан. Проверь почту и подтверди адрес, затем войди.');setAuthMode('login');}}else{const r=await engine.sb.auth.signInWithPassword({email,password:authPassword});if(r.error)throw r.error;setAuthMessage('Вход выполнен. Загружаю кабинет…');await onRefresh();}}catch(e:any){const msg=String(e?.message||'');setError(/already registered/i.test(msg)?'Этот email уже зарегистрирован. Войди в аккаунт.':/invalid login credentials/i.test(msg)?'Неверный email или пароль.':msg||'Не удалось выполнить вход.');}finally{setAuthBusy(false);}};
+ const linkedPlayer=profile?.linked_player_id?players.find(p=>String(p.id)===String(profile.linked_player_id)):null;
+ const accountPlayerName=linkedPlayer?.name|| (profile?.linked_player_id?'Игрок #'+profile.linked_player_id:'Карточка игрока не привязана');
+ const authProviders=[...(Array.isArray(session?.user?.app_metadata?.providers)?session.user.app_metadata.providers:[]),session?.user?.app_metadata?.provider,...(Array.isArray(session?.user?.identities)?session.user.identities.map((identity:any)=>identity.provider):[])].filter(Boolean).map((provider:any)=>String(provider).toLowerCase());
+ const telegramConnected=authProviders.some((provider:string)=>provider.includes('telegram'))||!!(session?.user?.user_metadata?.telegram_username||session?.user?.user_metadata?.telegram_id);
  return <section className="page">
   <div className="section-head"><div><div className="eyebrow">ЛИЧНЫЙ РАЗДЕЛ</div><h2>Кабинет игрока</h2><p>Привяжи аккаунт к своей карточке в лиге и отправляй статистику после проверки доступа.</p></div></div>
   {!session?<div className="admin-login"><div className="admin-lock"><CircleUserRound size={32}/></div><h2>{authMode==='login'?'Войти в кабинет':'Создать аккаунт'}</h2><p>Выбери удобный способ входа. Администратор входит отдельно через раздел «Админка».</p>
