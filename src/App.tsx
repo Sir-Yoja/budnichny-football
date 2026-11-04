@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { legacyHtml } from './legacyHtml';
 
-type Tab = 'home' | 'rating' | 'admin';
-type AdminSection = 'overview' | 'players' | 'days';
+type Tab = 'home' | 'rating' | 'admin' | 'account';
+type AdminSection = 'overview' | 'players' | 'days' | 'accounts';
 
 type Engine = Window & {
   players?: any[]; days?: any[]; teams?: any[]; games?: any[]; dayPlayers?: any[];
@@ -46,6 +46,7 @@ export default function App(){
   const [icons,setIcons]=useState<Record<string,string>>({});
   const [ratingSort,setRatingSort]=useState('rating');
   const [quickEntryOpen,setQuickEntryOpen]=useState(false);
+  const [accountOpen,setAccountOpen]=useState(false);
 
   const getEngine=()=>frame.current?.contentWindow as Engine|null;
   const refresh=useCallback(async()=>{
@@ -360,6 +361,7 @@ export default function App(){
       <nav className={menu?'nav open':'nav'}>
         <button className={tab==='home'?'active':''} onClick={()=>{setTab('home');setMenu(false)}}>Игровые дни</button>
         <button className={tab==='rating'?'active':''} onClick={()=>{setTab('rating');setMenu(false)}}>Рейтинг</button>
+         <button className={tab==='account'?'active':''} onClick={()=>{setTab('account');setMenu(false)}}><CircleUserRound size={16}/> Кабинет</button>
         <button className={tab==='admin'?'active':''} onClick={()=>{setTab('admin');setMenu(false)}}><Shield size={16}/> Админка</button>
       </nav>
       <button className="mobile-menu" onClick={()=>setMenu(v=>!v)}><Menu/></button>
@@ -367,7 +369,8 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>} 
+      {tab==='rating' && <Rating rows={rating} icons={icons} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='account' && <AccountPage session={session} players={players} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname}});if(result.error)throw result.error;}} onRefresh={refresh}/>} 
       {tab==='admin' && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay}/>} 
     </main>
 
@@ -449,8 +452,55 @@ function Rating({rows,icons,sort,setSort,onPlayer}:{rows:any[];icons:Record<stri
 }
 function Admin({session,verified,stats,section,setSection,onLogin,onLogout,players,days,teams,games,dayPlayers,onAdd,onEdit,onDelete,onOpenDay,onEditDay,onQuickEntry,onRefresh,onAddDay,onDeleteDay}:{session:any;verified:boolean;stats:any;section:AdminSection;setSection:(s:AdminSection)=>void;onLogin:()=>void;onLogout:()=>void;players:any[];days:any[];teams:any[];games:any[];dayPlayers:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void;onOpenDay:(id:number)=>void;onEditDay:(id:number)=>void;onQuickEntry:()=>void;onRefresh:()=>void;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){
  if(!session || !verified)return <section className="admin-login"><div className="admin-lock"><Shield size={32}/></div><div className="eyebrow">ЗАКРЫТЫЙ РАЗДЕЛ</div><h2>Панель управления</h2><p>Здесь управляются игроки, игровые дни, составы и статистика лиги.</p><button className="primary-btn" onClick={onLogin}><LogIn size={17}/> Войти в админку</button></section>;
- return <section className="admin-page"><aside className="admin-side"><div className="admin-title"><Shield/><div><b>Панель управления</b><small>{session.user?.email}</small></div></div><button className={section==='overview'?'sel':''} onClick={()=>setSection('overview')}><LayoutDashboard/> Обзор</button><button className={section==='players'?'sel':''} onClick={()=>setSection('players')}><Users/> Игроки</button><button className={section==='days'?'sel':''} onClick={()=>setSection('days')}><CalendarDays/> Игровые дни</button><div className="side-bottom"><button onClick={onRefresh}><RefreshCw/> Обновить</button><button onClick={onLogout}><LogOut/> Выйти</button></div></aside><div className="admin-main">{section==='overview'&&<><div className="admin-header"><div><div className="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Обзор</h1><p>Контроль текущего состояния лиги.</p></div></div><div className="metrics"><Metric icon={<Users/>} label="Игроки" value={stats.players}/><Metric icon={<CalendarDays/>} label="Игровые дни" value={stats.days}/><Metric icon={<Trophy/>} label="Матчи" value={stats.games}/><Metric icon={<CircleUserRound/>} label="Участия" value={stats.participants}/></div><div className="quick-grid"><button className="quick-action" onClick={onQuickEntry}><Trophy/><b>Быстрое заполнение</b><span>Выбрать игру и внести статистику во время паузы</span></button><button onClick={onAdd}><Plus/><b>Добавить игрока</b><span>Создать новую карточку игрока</span></button><button onClick={()=>setSection('players')}><Users/><b>Управление игроками</b><span>Редактирование и статистика</span></button><button onClick={()=>setSection('days')}><CalendarDays/><b>Игровые дни</b><span>Редактирование и составы</span></button></div></>}{section==='players'&&<PlayersAdmin players={players} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>} {section==='days'&&<DaysAdmin days={days} teams={teams} games={games} dayPlayers={dayPlayers} onOpen={onOpenDay} onEdit={onEditDay} onAddDay={onAddDay} onDeleteDay={onDeleteDay} />}</div></section>
+ return <section className="admin-page"><aside className="admin-side"><div className="admin-title"><Shield/><div><b>Панель управления</b><small>{session.user?.email}</small></div></div><button className={section==='overview'?'sel':''} onClick={()=>setSection('overview')}><LayoutDashboard/> Обзор</button><button className={section==='players'?'sel':''} onClick={()=>setSection('players')}><Users/> Игроки</button><button className={section==='days'?'sel':''} onClick={()=>setSection('days')}><CalendarDays/> Игровые дни</button><button className={section==='accounts'?'sel':''} onClick={()=>setSection('accounts')}><CircleUserRound/> Аккаунты и заявки</button><div className="side-bottom"><button onClick={onRefresh}><RefreshCw/> Обновить</button><button onClick={onLogout}><LogOut/> Выйти</button></div></aside><div className="admin-main">{section==='overview'&&<><div className="admin-header"><div><div className="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Обзор</h1><p>Контроль текущего состояния лиги.</p></div></div><div className="metrics"><Metric icon={<Users/>} label="Игроки" value={stats.players}/><Metric icon={<CalendarDays/>} label="Игровые дни" value={stats.days}/><Metric icon={<Trophy/>} label="Матчи" value={stats.games}/><Metric icon={<CircleUserRound/>} label="Участия" value={stats.participants}/></div><div className="quick-grid"><button className="quick-action" onClick={onQuickEntry}><Trophy/><b>Быстрое заполнение</b><span>Выбрать игру и внести статистику во время паузы</span></button><button onClick={onAdd}><Plus/><b>Добавить игрока</b><span>Создать новую карточку игрока</span></button><button onClick={()=>setSection('players')}><Users/><b>Управление игроками</b><span>Редактирование и статистика</span></button><button onClick={()=>setSection('days')}><CalendarDays/><b>Игровые дни</b><span>Редактирование и составы</span></button></div></>}{section==='players'&&<PlayersAdmin players={players} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>} {section==='days'&&<DaysAdmin days={days} teams={teams} games={games} dayPlayers={dayPlayers} onOpen={onOpenDay} onEdit={onEditDay} onAddDay={onAddDay} onDeleteDay={onDeleteDay} />}{section==='accounts'&&<AccountRequestsAdmin engine={getEngine()} players={players} onRefresh={onRefresh}/>}</div></section>
 }
+
+function AccountPage({session,players,engine,onLoginSocial,onRefresh}:{session:any;players:any[];engine:any;onLoginSocial:(provider:string)=>Promise<void>;onRefresh:()=>Promise<void>}){
+ const [profile,setProfile]=useState<any>(null),[requests,setRequests]=useState<any[]>([]),[selected,setSelected]=useState(''),[token,setToken]=useState(''),[note,setNote]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const load=async()=>{
+  if(!session?.user?.id||!engine?.sb){setProfile(null);setRequests([]);return;}
+  const [p,r]=await Promise.all([
+   engine.sb.from('user_profiles').select('user_id,role,linked_player_id').eq('user_id',session.user.id).maybeSingle(),
+   engine.sb.from('player_link_requests').select('id,player_id,status,note,created_at,reviewed_at').eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(10)
+  ]);
+  if(p.error)throw p.error;if(r.error)throw r.error;setProfile(p.data);setRequests(r.data||[]);
+ };
+ useEffect(()=>{let alive=true;load().catch(e=>alive&&setError(e.message||'Не удалось загрузить кабинет'));return()=>{alive=false}},[session?.user?.id,engine]);
+ const submit=async()=>{
+  if(!selected||!token.trim()){setError('Выбери себя в списке и введи код приглашения.');return;}
+  setBusy(true);setError('');setMessage('');
+  try{const r=await engine.sb.rpc('request_player_link',{p_player_id:Number(selected),p_invitation_token:token.trim(),p_note:note.trim()||null});if(r.error)throw r.error;setMessage('Заявка отправлена администратору. После проверки привязка появится в кабинете.');setToken('');setNote('');await load();}
+  catch(e:any){setError(e?.message||'Не удалось отправить заявку.');}finally{setBusy(false);}
+ };
+ return <section className="page">
+  <div className="section-head"><div><div className="eyebrow">ЛИЧНЫЙ РАЗДЕЛ</div><h2>Кабинет игрока</h2><p>Привяжи аккаунт к своей карточке в лиге и отправляй статистику после проверки доступа.</p></div></div>
+  {!session?<div className="admin-login"><div className="admin-lock"><CircleUserRound size={32}/></div><h2>Войти как участник</h2><p>Для обычного входа используй социальный аккаунт. Администратор входит отдельно через раздел «Админка».</p>
+   <div className="quick-grid"><button onClick={()=>onLoginSocial('yandex')}>Войти через Яндекс</button><button onClick={()=>onLoginSocial('vk')}>Войти через VK</button><button disabled title="Telegram требует отдельной серверной проверки подписи Telegram Login Widget">Telegram — настройка требуется</button></div>
+  </div>:<div className="admin-card" style={{maxWidth:760,margin:'0 auto'}}>
+   <div className="admin-header"><div><div className="eyebrow">АККАУНТ</div><h2>{session.user.email||session.user.phone||'Социальный аккаунт'}</h2><p>Статус: <b>{profile?.role==='participant'?'Участник':'Гость'}</b></p></div><button className="secondary-btn" onClick={async()=>{await engine.sb.auth.signOut();await onRefresh()}}>Выйти</button></div>
+   {profile?.linked_player_id?<p>Аккаунт привязан к игроку: <b>{players.find(p=>String(p.id)===String(profile.linked_player_id))?.name||'Игрок #'+profile.linked_player_id}</b></p>:<><h3>Привязать карточку игрока</h3><p>Выбери своё имя из списка и введи персональный код приглашения, который выдал администратор.</p>
+    <label>Твоя карточка<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Выбрать игрока</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}{p.position?' — '+p.position:''}</option>)}</select></label>
+    <label>Код приглашения<input value={token} onChange={e=>setToken(e.target.value)} placeholder="Вставь код из приглашения" autoComplete="off"/></label>
+    <label>Комментарий (необязательно)<textarea value={note} onChange={e=>setNote(e.target.value)} maxLength={500} placeholder="Дополнительная информация"/></label>
+    <button className="primary-btn" onClick={submit} disabled={busy}>{busy?'Отправляю…':'Отправить заявку'}</button>
+   </>}
+   {message&&<p className="success">{message}</p>}{error&&<p className="error">{error}</p>}
+   <h3>Мои заявки</h3>{requests.length?<div className="admin-list">{requests.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{new Date(r.created_at).toLocaleString('ru-RU')}</small></div><span>{r.status==='pending'?'На проверке':r.status==='approved'?'Подтверждена':r.status==='rejected'?'Отклонена':'Нужно исправить'}</span>{r.note&&<small>{r.note}</small>}</div>)}</div>:<p>Заявок пока нет.</p>}
+  </div>}
+ </section>;
+}
+function AccountRequestsAdmin({engine,players,onRefresh}:{engine:any;players:any[];onRefresh:()=>Promise<void>}){
+ const [rows,setRows]=useState<any[]>([]),[maxUses,setMaxUses]=useState('1'),[ttl,setTtl]=useState('14'),[busy,setBusy]=useState(false),[invite,setInvite]=useState(''),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const load=async()=>{const r=await engine.sb.from('player_link_requests').select('id,user_id,player_id,status,note,created_at').eq('status','pending').order('created_at',{ascending:true});if(r.error)throw r.error;setRows(r.data||[])};
+ useEffect(()=>{load().catch(e=>setError(e.message||'Ошибка загрузки'))},[engine]);
+ const create=async()=>{setBusy(true);setError('');setInvite('');try{const r=await engine.sb.rpc('create_invitation',{p_max_uses:Number(maxUses),p_ttl_days:Number(ttl)});if(r.error)throw r.error;setInvite(r.data);setMessage('Код создан. Скопируй и отправь его игроку лично.');}catch(e:any){setError(e.message||'Не удалось создать приглашение')}finally{setBusy(false)}};
+ const decide=async(id:number,decision:string)=>{const note=decision==='needs_correction'?prompt('Что нужно исправить?')||'Нужно уточнить данные':null;setBusy(true);try{const r=await engine.sb.rpc('review_player_link_request',{p_request_id:id,p_decision:decision,p_note:note});if(r.error)throw r.error;await load();await onRefresh()}catch(e:any){setError(e.message||'Не удалось обработать заявку')}finally{setBusy(false)}};
+ return <><div className="admin-header"><div><div className="eyebrow">АККАУНТЫ</div><h1>Приглашения и привязки</h1><p>{rows.length} заявок ожидают проверки.</p></div></div>
+  <div className="admin-card" style={{padding:20,marginBottom:20}}><h3>Создать приглашение</h3><div className="quick-grid"><label>Использований<select value={maxUses} onChange={e=>setMaxUses(e.target.value)}>{[1,2,3,5,10].map(v=><option key={v}>{v}</option>)}</select></label><label>Срок действия<select value={ttl} onChange={e=>setTtl(e.target.value)}><option value="1">1 день</option><option value="7">7 дней</option><option value="14">14 дней</option><option value="30">30 дней</option></select></label></div><button className="primary-btn" onClick={create} disabled={busy}>Создать код</button>{invite&&<p><code>{invite}</code> <button onClick={()=>navigator.clipboard?.writeText(invite)}>Копировать</button></p>}{message&&<p>{message}</p>}{error&&<p className="error">{error}</p>}</div>
+  <h3>Заявки на привязку</h3>{rows.length?<div className="admin-list">{rows.map(r=><div className="admin-day" key={r.id}><div><b>{players.find(p=>String(p.id)===String(r.player_id))?.name||'Игрок #'+r.player_id}</b><small>{r.user_id} · {new Date(r.created_at).toLocaleString('ru-RU')}</small>{r.note&&<small>{r.note}</small>}</div><div className="day-actions"><button className="primary-mini" disabled={busy} onClick={()=>decide(r.id,'approved')}>Подтвердить</button><button disabled={busy} onClick={()=>decide(r.id,'needs_correction')}>Уточнить</button><button disabled={busy} onClick={()=>decide(r.id,'rejected')}>Отклонить</button></div></div>)}</div>:<p>Новых заявок нет.</p>}
+ </>;
+}
+
 function Metric({icon,label,value}:{icon:any;label:string;value:number}){return <div className="metric"><span>{icon}</span><small>{label}</small><strong>{value}</strong></div>}
 function PlayersAdmin({players,onAdd,onEdit,onDelete}:{players:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void}){return <><div className="admin-header row"><div><div className="eyebrow">УПРАВЛЕНИЕ</div><h1>Игроки</h1><p>{players.length} игроков в базе.</p></div><button className="primary-btn" onClick={onAdd}><Plus/> Добавить игрока</button></div><div className="admin-list">{players.map(p=><div className="admin-player" key={p.id}><div className="avatar">{p.name?.slice(0,1)||'?'}</div><div className="ap-main"><b>{p.name}</b><small>{p.position||'Позиция не указана'}{p.is_goalkeeper?' · Вратарь':''}</small></div><button className="icon-btn" onClick={()=>onEdit(p)}><Pencil/></button><button className="icon-btn danger-icon" onClick={()=>onDelete(p.id)}><Trash2/></button></div>)}</div></>}
 function DaysAdmin({days,teams,games,dayPlayers,onOpen,onEdit,onAddDay,onDeleteDay}:{days:any[];teams:any[];games:any[];dayPlayers:any[];onOpen:(id:number)=>void;onEdit:(id:number)=>void;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){return <><div className="admin-header row"><div><div className="eyebrow">УПРАВЛЕНИЕ</div><h1>Игровые дни</h1><p>Редактирование дат, команд, матчей, составов и статистики.</p></div><button className="primary-btn" onClick={onAddDay}><Plus/> Добавить игровой день</button></div><div className="admin-list">{days.map(d=>{const ts=teams.filter(t=>t.game_day_id===d.id),gs=games.filter(g=>g.game_day_id===d.id),ps=dayPlayers.filter(p=>p.game_day_id===d.id);return <div className="admin-day" key={d.id}><div><span className="day-kicker">{dayName(d.game_date)}</span><h3>{fmtDate(d.game_date)} · {d.place||'Без места'}</h3><small>{d.game_time||'—'} · {ts.length} команд · {gs.length} матчей · {ps.length} участников</small></div><div className="day-actions"><button onClick={()=>onOpen(d.id)}>Открыть</button><button className="primary-mini" onClick={()=>onEdit(d.id)}><Pencil size={15}/> Редактировать</button><button className="icon-btn danger-icon" onClick={()=>onDeleteDay(d.id)} title="Удалить игровой день" aria-label={`Удалить игровой день ${fmtDate(d.game_date)}`}><Trash2 size={17}/></button></div></div>})}</div></>}
