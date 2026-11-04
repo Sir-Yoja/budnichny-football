@@ -545,8 +545,8 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
    </form>
    <button className="account-auth-switch" type="button" onClick={()=>{setAuthMode(v=>v==='login'?'register':'login');setError('');setAuthMessage('');}}>{authMode==='login'?'Нет аккаунта? Зарегистрироваться':'Уже есть аккаунт? Войти'}</button>
    {authMessage&&<p className="success">{authMessage}</p>}{error&&<p className="error">{error}</p>}
-  </div>:<div className="admin-card" style={{maxWidth:760,margin:'0 auto'}}>
-   <div className="admin-header"><div><div className="eyebrow">АККАУНТ</div><h2>{session.user.email||session.user.phone||'Социальный аккаунт'}</h2><p>Статус: <b>{adminVerified?'Администратор':profile?.role==='participant'?'Участник':'Гость'}</b></p></div><button className="secondary-btn" onClick={async()=>{await engine.sb.auth.signOut();await onRefresh()}}>Выйти</button></div>
+  </div>:<div className="admin-card account-card" style={{maxWidth:760,margin:'0 auto'}}>
+   <div className="admin-header account-profile-header"><div><div className="eyebrow">АККАУНТ</div><h2>{session.user.email||session.user.phone||'Социальный аккаунт'}</h2><p>Статус: <b>{adminVerified?'Администратор':profile?.role==='participant'?'Участник':'Гость'}</b></p></div><button className="secondary-btn" onClick={async()=>{await engine.sb.auth.signOut();await onRefresh()}}>Выйти</button></div>
    {profile?.linked_player_id?<p>Аккаунт привязан к игроку: <b>{players.find(p=>String(p.id)===String(profile.linked_player_id))?.name||'Игрок #'+profile.linked_player_id}</b></p>:<><h3>Привязать карточку игрока</h3><p>Выбери своё имя из списка и введи персональный код приглашения, который выдал администратор.</p>
     <label>Твоя карточка<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Выбрать игрока</option>{players.map(p=><option key={p.id} value={p.id}>{p.name}{p.position?' — '+p.position:''}</option>)}</select></label>
     <label>Код приглашения<input value={token} onChange={e=>setToken(e.target.value)} placeholder="Вставь код из приглашения" autoComplete="off"/></label>
