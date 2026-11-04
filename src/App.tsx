@@ -479,9 +479,13 @@ function AccountPage({session,players,days,games,teams,dayPlayers,engine,onLogin
   try{
    const existing=await engine.sb.from('game_player_stats').select('id,status').eq('game_id',game.id).eq('player_id',profile.linked_player_id).maybeSingle();
    if(existing.error)throw existing.error;
-   if(existing.data)throw new Error('Статистика за этот матч уже отправлена или сохранена. Повторная отправка заблокирована.');
-   const payload={game_id:game.id,game_day_id:game.game_day_id,player_id:profile.linked_player_id,team_id:roster.team_id,goals:Number(statDraft.goals),assists:Number(statDraft.assists),own_goals:Number(statDraft.own_goals),saves:Number(statDraft.saves),conceded:Number(statDraft.conceded),goalkeeper:!!statDraft.goalkeeper,status:'pending',submitted_by:session.user.id};
-   const saved=await engine.sb.from('game_player_stats').insert(payload);if(saved.error)throw saved.error;
+   const payload={game_id:game.id,game_day_id:game.game_day_id,player_id:profile.linked_player_id,team_id:roster.team_id,goals:Number(statDraft.goals),assists:Number(statDraft.assists),own_goals:Number(statDraft.own_goals),saves:Number(statDraft.saves),conceded:Number(statDraft.conceded),goalkeeper:!!statDraft.goalkeeper};
+   if(existing.data?.status==='needs_correction'){
+    const saved=await engine.sb.rpc('resubmit_match_stat',{p_stat_id:existing.data.id,p_payload:payload});if(saved.error)throw saved.error;
+   }else{
+    if(existing.data)throw new Error('Статистика уже отправлена или сохранена. Если администратор вернул её на исправление, можно отправить исправленную версию.');
+    const saved=await engine.sb.from('game_player_stats').insert({...payload,status:'pending',submitted_by:session.user.id});if(saved.error)throw saved.error;
+   }
    setMessage('Статистика отправлена на проверку. В рейтинг она попадёт после подтверждения администратором.');
   }catch(e:any){setError(e?.message||'Не удалось отправить статистику.');}finally{setBusy(false);}
  };

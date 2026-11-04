@@ -158,6 +158,43 @@ end; $;
 revoke all on function public.consume_admin_email_challenge(uuid,text) from public,anon,authenticated;
 grant execute on function public.consume_admin_email_challenge(uuid,text) to service_role;
 
+
+create or replace function public.resubmit_match_stat(p_stat_id bigint,p_payload jsonb)
+returns void language plpgsql security definer set search_path=''
+as $
+declare old public.game_player_stats%rowtype; me uuid:=auth.uid();
+begin
+ if me is null then raise exception 'authentication_required' using errcode='42501'; end if;
+ select * into old from public.game_player_stats where id=p_stat_id for update;
+ if old.id is null or old.submitted_by<>me or old.status<>'needs_correction' then
+  raise exception 'stat_not_eligible_for_resubmission' using errcode='42501';
+ end if;
+ if not public.is_linked_participant_for(old.player_id) then raise exception 'participant_link_required'; end if;
+ if coalesce((p_payload->>'game_id')::bigint,0)<>old.game_id then raise exception 'game_id_mismatch'; end if;
+ update public.game_player_stats set
+  goals=greatest(0,coalesce((p_payload->>'goals')::integer,0)),
+  assists=greatest(0,coalesce((p_payload->>'assists')::integer,0)),
+  own_goals=greatest(0,coalesce((p_payload->>'own_goals')::integer,0)),
+  saves=greatest(0,coalesce((p_payload->>'saves')::integer,0)),
+  conceded=greatest(0,coalesce((p_payload->>'conceded')::integer,0)),
+  goalkeeper=coalesce((p_payload->>'goalkeeper')::boolean,false),
+  status='pending'
+ where id=p_stat_id;
+end; $;
+revoke all on function public.resubmit_match_stat(bigint,jsonb) from public,anon;
+grant execute on function public.resubmit_match_stat(bigint,jsonb) to authenticated;
+
+create or replace function public.revoke_invitation(p_invitation_id bigint)
+returns void language plpgsql security definer set search_path=''
+as $
+begin
+ if not public.is_site_admin() then raise exception 'admin_required' using errcode='42501'; end if;
+ update public.invitation_tokens set revoked_at=now() where id=p_invitation_id and revoked_at is null;
+ if not found then raise exception 'invitation_not_found_or_revoked'; end if;
+end; $;
+revoke all on function public.revoke_invitation(bigint) from public,anon;
+grant execute on function public.revoke_invitation(bigint) to authenticated;
+
 -- Browser cannot directly manipulate account-layer tables.
 alter table public.user_profiles enable row level security;
 alter table public.invitation_tokens enable row level security;
