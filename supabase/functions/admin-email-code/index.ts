@@ -41,16 +41,12 @@ Deno.serve(async(req)=>{
  }
  if(body.action==='verify'){
   const code=String(body.code??'').trim();if(!/^\d{6}$/.test(code))return json(400,{error:'Введите шестизначный код.'});
-  const {data:c,error:e}=await db.from('admin_email_challenges').select('*').eq('user_id',ADMIN_ID).order('created_at',{ascending:false}).limit(1).maybeSingle();
-  if(e)return json(500,{error:'Challenge lookup failed.'});
-  if(!c||c.verified_at||new Date(c.expires_at).getTime()<Date.now())return json(400,{error:'Код недействителен или истёк.'});
-  if(c.attempts>=MAX_ATTEMPTS)return json(429,{error:'Слишком много попыток. Запроси новый код.'});
-  if(!equal(await digest(code,pepper),c.code_hash)){
-   await db.from('admin_email_challenges').update({attempts:c.attempts+1}).eq('id',c.id);
-   return json(400,{error:'Неверный код.'});
-  }
-  const verified=await db.from('admin_email_challenges').update({verified_at:new Date().toISOString()}).eq('id',c.id).is('verified_at',null);
-  if(verified.error)return json(500,{error:'Could not verify challenge.'});
+  const codeHash=await digest(code,pepper);
+  const consumed=await db.rpc('consume_admin_email_challenge',{p_user_id:ADMIN_ID,p_code_hash:codeHash});
+  if(consumed.error)return json(500,{error:'Challenge verification failed.'});
+  if(consumed.data==='invalid')return json(400,{error:'Неверный код.'});
+  if(consumed.data==='locked')return json(429,{error:'Слишком много попыток. Запроси новый код.'});
+  if(consumed.data!=='verified')return json(400,{error:'Код недействителен или истёк.'});
   return json(200,{ok:true,admin_session_seconds:900});
  }
  return json(400,{error:'Unknown action.'});

@@ -136,6 +136,28 @@ begin
  if not found then raise exception 'stat_not_pending_or_missing'; end if;
 end; $$;
 
+
+-- Atomic, one-time challenge consumption. Only service_role may call this RPC.
+create or replace function public.consume_admin_email_challenge(p_user_id uuid,p_code_hash text)
+returns text language plpgsql security definer set search_path=''
+as $
+declare c public.admin_email_challenges%rowtype;
+begin
+ select * into c from public.admin_email_challenges
+  where user_id=p_user_id order by created_at desc limit 1 for update;
+ if c.id is null or c.verified_at is not null or c.expires_at<=now() then return 'expired'; end if;
+ if c.attempts>=5 then return 'locked'; end if;
+ if c.code_hash<>p_code_hash then
+  update public.admin_email_challenges set attempts=attempts+1 where id=c.id;
+  return 'invalid';
+ end if;
+ update public.admin_email_challenges set verified_at=now() where id=c.id and verified_at is null;
+ if not found then return 'expired'; end if;
+ return 'verified';
+end; $;
+revoke all on function public.consume_admin_email_challenge(uuid,text) from public,anon,authenticated;
+grant execute on function public.consume_admin_email_challenge(uuid,text) to service_role;
+
 -- Browser cannot directly manipulate account-layer tables.
 alter table public.user_profiles enable row level security;
 alter table public.invitation_tokens enable row level security;
