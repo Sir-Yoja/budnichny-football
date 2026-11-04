@@ -46,7 +46,6 @@ export default function App(){
   const [icons,setIcons]=useState<Record<string,string>>({});
   const [ratingSort,setRatingSort]=useState('rating');
   const [quickEntryOpen,setQuickEntryOpen]=useState(false);
-  const [accountOpen,setAccountOpen]=useState(false);
 
   const getEngine=()=>frame.current?.contentWindow as Engine|null;
   const refresh=useCallback(async()=>{
