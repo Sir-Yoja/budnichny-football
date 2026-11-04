@@ -319,9 +319,13 @@ create policy game_player_stats_participant_submit on public.game_player_stats f
    and game_player_stats.team_id in (g.team_a_id,g.team_b_id))
   and exists(select 1 from public.game_day_players dp where dp.game_day_id=game_player_stats.game_day_id
    and dp.player_id=game_player_stats.player_id and dp.team_id=game_player_stats.team_id));
+create policy game_player_stats_admin_insert on public.game_player_stats for insert to authenticated
+ with check(public.is_site_admin());
+create policy game_player_stats_admin_update on public.game_player_stats for update to authenticated
+ using(public.is_site_admin()) with check(public.is_site_admin());
 create policy game_player_stats_admin_delete on public.game_player_stats for delete to authenticated
  using(public.is_site_admin());
-revoke update on public.game_player_stats from authenticated;
+grant insert,update,delete on public.game_player_stats to authenticated;
 
 -- Admin-only image writes. Review all existing Storage policies and bucket visibility before rollout.
 drop policy if exists game_day_images_insert_authenticated on storage.objects;
