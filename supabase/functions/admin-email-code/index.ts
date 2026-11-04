@@ -13,16 +13,19 @@ async function digest(code:string,pepper:string){
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pepper),{name:'HMAC',hash:'SHA-256'},false,['sign']);
  return hex(new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(code))));
 }
-function newCode(){const b=new Uint32Array(1);crypto.getRandomValues(b);return String(b[0]%1000000).padStart(6,'0');}
+function newCode(){const limit=Math.floor(0x1_0000_0000/1_000_000)*1_000_000;const b=new Uint32Array(1);do{crypto.getRandomValues(b);}while(b[0]>=limit);return String(b[0]%1_000_000).padStart(6,'0');}
 function getSessionId(jwt:string){try{const part=jwt.split('.')[1];if(!part)return null;const encoded=part.replace(/-/g,'+').replace(/_/g,'/');const payload=JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length/4)*4,'=')));return typeof payload.session_id==='string'?payload.session_id:null;}catch{return null;}}
 
 Deno.serve(async(req)=>{
  const cors=corsFor(req),respond=(status:number,body:Record<string,unknown>)=>json(status,body,cors);
  if(!allowedOrigins.length)return respond(500,{error:'APP_ORIGIN or APP_ORIGINS must be configured.'});
  const origin=req.headers.get('Origin');
- if(origin&&!allowedOrigins.includes(origin))return respond(403,{error:'Origin not allowed.'});
- if(req.method==='OPTIONS')return new Response('ok',{headers:cors});
+ if(req.method==='OPTIONS'){
+  if(!origin||!allowedOrigins.includes(origin))return respond(403,{error:'Origin not allowed.'});
+  return new Response('ok',{headers:cors});
+ }
  if(req.method!=='POST')return respond(405,{error:'Method not allowed'});
+ if(!origin||!allowedOrigins.includes(origin))return respond(403,{error:'Origin not allowed.'});
  const url=Deno.env.get('SUPABASE_URL'),anon=Deno.env.get('SUPABASE_ANON_KEY'),service=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
  const resend=Deno.env.get('RESEND_API_KEY'),pepper=Deno.env.get('ADMIN_CODE_PEPPER');
  if(!url||!anon||!service||!resend||!pepper)return respond(500,{error:'Server verification is not configured.'});
