@@ -522,7 +522,7 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
     if(existing.data)throw new Error('Статистика уже отправлена или сохранена. Если администратор вернул её на исправление, можно отправить исправленную версию.');
     const saved=await engine.sb.from('game_player_stats').insert({...payload,status:'pending',submitted_by:session.user.id});if(saved.error)throw saved.error;
    }
-   setMessage('Статистика отправлена на проверку. В рейтинг она попадёт после подтверждения администратором.');await load();
+   setMessage('Статистика отправлена на проверку. В рейтинг она попадёт после подтверждения администратором.');setSelectedGame('');setStatDraft({goals:0,assists:0,own_goals:0,saves:0,conceded:0,goalkeeper:false});await load();
   }catch(e:any){setError(e?.message||'Не удалось отправить статистику.');}finally{setBusy(false);}
  };
  const submit=async()=>{
