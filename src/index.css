@@ -427,3 +427,32 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .account-auth-form input:focus{outline:2px solid rgba(207,184,66,.55);outline-offset:1px;border-color:#cfb842}
 .account-auth-switch{display:block;margin:16px auto 0;padding:8px 10px;border:0;background:transparent;color:#cfb842;font:700 13px Manrope,Arial,sans-serif;cursor:pointer}
 .account-auth-switch:hover{text-decoration:underline}
+
+/* Кабинет игрока: последовательный выбор игрового дня и матча */
+.account-stat-submit{margin-top:24px;padding:20px;border:1px solid rgba(207,184,66,.24);border-radius:16px;background:linear-gradient(145deg,rgba(10,31,43,.88),rgba(8,22,32,.94));}
+.account-stat-heading h3{margin:0 0 6px;color:#f3f6f8;font-size:20px}
+.account-stat-heading p{margin:0;color:#9aadb8;font-size:13px;line-height:1.55}
+.account-match-selectors{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+.account-match-selectors label{display:grid;gap:8px;min-width:0}
+.account-match-selectors label>span{color:#cfb842;font-size:12px;font-weight:800;letter-spacing:.04em}
+.account-match-selectors select{width:100%;min-width:0;min-height:48px;padding:10px 13px;border:1px solid rgba(207,184,66,.32);border-radius:11px;background:#091923;color:#edf3f6;font:600 14px Manrope,Arial,sans-serif;box-sizing:border-box}
+.account-match-selectors select:focus{outline:2px solid rgba(207,184,66,.38);outline-offset:1px;border-color:#cfb842}
+.account-match-selectors select:disabled{opacity:.48;cursor:not-allowed}
+.account-stat-empty{padding:13px 15px;border:1px dashed rgba(255,255,255,.14);border-radius:10px;color:#91a1ad;font-size:13px}
+.account-selected-match{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 16px;padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:11px;background:rgba(255,255,255,.035)}
+.account-selected-match>span{color:#91a1ad;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.account-selected-match>b{color:#f3f6f8;font-size:15px}
+.account-selected-match>b i{padding:0 5px;color:#cfb842;font-style:normal}
+.account-selected-match>small{margin-left:auto;color:#91a1ad;font-size:12px}
+.account-stat-fields{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.account-stat-field{display:grid;gap:8px;min-width:0;padding:11px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(2,12,19,.42)}
+.account-stat-icon{display:flex;align-items:center;gap:7px;min-height:26px;color:#c3d0d7;font-size:12px;font-weight:700}
+.account-stat-icon img{display:block;width:25px;height:25px;object-fit:contain;flex:0 0 25px}
+.account-stat-fallback{display:inline-flex;width:25px;height:25px;align-items:center;justify-content:center;border-radius:7px;background:rgba(207,184,66,.12);color:#cfb842;font-size:17px;flex:none}
+.account-stat-field input{width:100%;height:43px;min-width:0;padding:7px 9px;border:1px solid #30434e;border-radius:9px;background:#07131c;color:#fff;text-align:center;font:800 17px Manrope,Arial,sans-serif;box-sizing:border-box}
+.account-stat-field input:focus{outline:2px solid rgba(207,184,66,.35);border-color:#cfb842}
+.account-goalkeeper-check{display:flex!important;align-items:center;gap:9px;margin:14px 0;color:#cbd5da;font-size:13px}
+.account-goalkeeper-check input{width:17px;height:17px;accent-color:#cfb842}
+.account-submit-btn{margin-top:4px;min-height:46px}
+@media(max-width:760px){.account-match-selectors{grid-template-columns:1fr}.account-stat-fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:480px){.account-stat-submit{padding:14px}.account-stat-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.account-selected-match>small{width:100%;margin-left:0}}
