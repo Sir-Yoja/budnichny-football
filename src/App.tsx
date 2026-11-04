@@ -497,8 +497,7 @@ function AccountPage({session,players,days,games,teams,dayPlayers,engine,onLogin
   if(p.error)throw p.error;if(r.error)throw r.error;if(s.error)throw s.error;setProfile(p.data);setRequests(r.data||[]);setMyStats(s.data||[]);
  };
  useEffect(()=>{let alive=true;load().catch(e=>alive&&setError(e.message||'Не удалось загрузить кабинет'));return()=>{alive=false}},[session?.user?.id,engine]);
- const myPlayer=players.find(p=>String(p.id)===String(profile?.linked_player_id));
- const eligibleGames=games.filter(g=>dayPlayers.some(dp=>String(dp.player_id)===String(profile?.linked_player_id)&&String(dp.game_day_id)===String(g.game_day_id)&&(String(dp.team_id)===String(g.team_a_id)||String(dp.team_id)===String(g.team_b_id))));
+ const eligibleGames=games.filter(g=>dayPlayers.some(dp=>String(dp.player_id)===String(profile?.linked_player_id)&&String(dp.game_day_id)===String(g.game_day_id)&&(String(dp.team_id)===String(g.team_a_id)||String(dp.team_id)===String(g.team_b_id)))&&!myStats.some(row=>String(row.game_id)===String(g.id)&&row.status!=='needs_correction'));
  const submitMatchStats=async()=>{
   if(!profile?.linked_player_id||!selectedGame){setError('Выбери матч.');return;}
   const game=games.find(g=>String(g.id)===String(selectedGame));if(!game)return;
@@ -528,7 +527,7 @@ function AccountPage({session,players,days,games,teams,dayPlayers,engine,onLogin
  return <section className="page">
   <div className="section-head"><div><div className="eyebrow">ЛИЧНЫЙ РАЗДЕЛ</div><h2>Кабинет игрока</h2><p>Привяжи аккаунт к своей карточке в лиге и отправляй статистику после проверки доступа.</p></div></div>
   {!session?<div className="admin-login"><div className="admin-lock"><CircleUserRound size={32}/></div><h2>Войти как участник</h2><p>Для обычного входа используй социальный аккаунт. Администратор входит отдельно через раздел «Админка».</p>
-   <div className="quick-grid"><button onClick={()=>onLoginSocial('yandex')}>Войти через Яндекс</button><button onClick={()=>onLoginSocial('vk')}>Войти через VK</button><button disabled title="Telegram требует отдельной серверной проверки подписи Telegram Login Widget">Telegram — настройка требуется</button></div>
+   <div className="quick-grid"><button onClick={()=>onLoginSocial('custom:yandex')}>Войти через Яндекс</button><button onClick={()=>onLoginSocial('custom:vk')}>Войти через VK</button><button disabled title="Telegram требует отдельной серверной проверки подписи Telegram Login Widget">Telegram — настройка требуется</button></div>
   </div>:<div className="admin-card" style={{maxWidth:760,margin:'0 auto'}}>
    <div className="admin-header"><div><div className="eyebrow">АККАУНТ</div><h2>{session.user.email||session.user.phone||'Социальный аккаунт'}</h2><p>Статус: <b>{profile?.role==='participant'?'Участник':'Гость'}</b></p></div><button className="secondary-btn" onClick={async()=>{await engine.sb.auth.signOut();await onRefresh()}}>Выйти</button></div>
    {profile?.linked_player_id?<p>Аккаунт привязан к игроку: <b>{players.find(p=>String(p.id)===String(profile.linked_player_id))?.name||'Игрок #'+profile.linked_player_id}</b></p>:<><h3>Привязать карточку игрока</h3><p>Выбери своё имя из списка и введи персональный код приглашения, который выдал администратор.</p>
