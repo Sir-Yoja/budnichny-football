@@ -564,7 +564,7 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
     {selectedMatch&&<div className="account-stat-fields">{statFields.map(field=><label className="account-stat-field" key={field.key}><span className="account-stat-icon">{icons[field.icon]?<img src={icons[field.icon]} alt="" />:<span className="account-stat-fallback">{field.icon==='goal'?'⚽':field.icon==='assists'?'↗':'•'}</span>}{field.label}</span><input type="number" min="0" step="1" value={statDraft[field.key]} onChange={e=>setStatDraft(v=>({...v,[field.key]:e.target.value===''?0:Number(e.target.value)}))}/></label>)}</div>}
     {selectedMatch&&<label className="account-goalkeeper-check"><input type="checkbox" checked={statDraft.goalkeeper} onChange={e=>setStatDraft(v=>({...v,goalkeeper:e.target.checked}))}/> Играл вратарём</label>}
     <button className="primary-btn account-submit-btn" onClick={submitMatchStats} disabled={busy||!selectedMatch}>{busy?'Отправляю…':'Отправить на проверку'}</button>
-   </div>
+   </div>}
    <h3 style={{marginTop:22}}>Моя статистика на проверке</h3>
    {myStats.length?<div className="admin-list">{myStats.map(row=>{const day=days.find(d=>String(d.id)===String(row.game_day_id));return <div className="admin-day" key={row.id}><div><b>{day?new Date(day.game_date).toLocaleDateString('ru-RU'):'Игровой день'} · матч #{row.game_id}</b><small>{row.status==='pending'?'Ожидает проверки':row.status==='approved'?'Подтверждена':row.status==='rejected'?'Отклонена':'Нужно исправить'}</small>{row.moderation_note&&<small>Комментарий администратора: {row.moderation_note}</small>}</div></div>})}</div>:<p>Отправленных записей пока нет.</p>}
   </div>}
