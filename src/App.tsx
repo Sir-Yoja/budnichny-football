@@ -33,6 +33,7 @@ export default function App(){
   const [games,setGames]=useState<any[]>([]);
   const [dayPlayers,setDayPlayers]=useState<any[]>([]);
   const [session,setSession]=useState<any>(null);
+  const [adminVerified,setAdminVerified]=useState(false);
   const [ready,setReady]=useState(false);
   const [loginOpen,setLoginOpen]=useState(false);
   const [editingPlayer,setEditingPlayer]=useState<any|null>(null);
@@ -59,7 +60,12 @@ export default function App(){
     const state=w.getLeagueState?.();
     setPlayers([...(state?.players||w.players||[])]); setDays([...(state?.days||w.days||[])]); setTeams([...(state?.teams||w.teams||[])]); setGames([...(state?.games||w.games||[])]); setDayPlayers([...(state?.dayPlayers||w.dayPlayers||[])]);
     setIcons({...((w.__leagueIcons||{}) as Record<string,string>)});
-    try{setSession((await w.sb?.auth.getSession())?.data?.session||null)}catch{}
+    try{
+      const current=(await w.sb?.auth.getSession())?.data?.session||null;
+      setSession(current);
+      if(current){const check=await w.sb?.rpc('is_site_admin');setAdminVerified(!check?.error&&check?.data===true);}
+      else setAdminVerified(false);
+    }catch{setAdminVerified(false)}
     setReady(true);
   },[]);
 
@@ -294,12 +300,20 @@ export default function App(){
       if(/email not confirmed/i.test(msg)) throw new Error('Email администратора не подтверждён в Supabase.');
       throw new Error(msg||'Не удалось войти в админку.');
     }
-    setSession(r.data?.session||null);
-    setLoginOpen(false);
+    setSession(r.data?.session||null);setAdminVerified(false);
+    const sent=await w.sb!.functions.invoke('admin-email-code',{body:{action:'send'}});
+    if(sent.error||sent.data?.error)throw new Error(sent.data?.error||sent.error?.message||'Не удалось отправить код на Email.');
     setAdminSection('overview');
-    await refresh();
   };
-  const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);};
+  const verifyAdminCode=async(code:string)=>{
+    const w=await waitForEngine();
+    const result=await w.sb!.functions.invoke('admin-email-code',{body:{action:'verify',code}});
+    if(result.error||result.data?.error)throw new Error(result.data?.error||result.error?.message||'Не удалось подтвердить код.');
+    const check=await w.sb!.rpc('is_site_admin');
+    if(check.error||check.data!==true)throw new Error('Код принят, но база не подтвердила права администратора. Обнови страницу и попробуй снова.');
+    setAdminVerified(true);setLoginOpen(false);await refresh();
+  };
+  const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);};
   const addPlayer=async(name:string,position:string='',gk:boolean=false)=>{const w=getEngine(); const r=await w?.sb?.from('players').insert({name,position:position||null,is_goalkeeper:gk}).select().single(); if(r?.error)throw r.error; await refresh();setNewPlayerOpen(false);};
   const updatePlayer=async(p:any)=>{const w=getEngine();const r=await w?.sb?.from('players').update({name:p.name,position:p.position||null,is_goalkeeper:!!p.is_goalkeeper}).eq('id',p.id).select().single();if(r?.error)throw r.error;await refresh();setEditingPlayer(null);};
   const deletePlayer=async(id:number)=>{
@@ -354,10 +368,10 @@ export default function App(){
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
       {tab==='rating' && <Rating rows={rating} icons={icons} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>} 
-      {tab==='admin' && <Admin session={session} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay}/>} 
+      {tab==='admin' && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay}/>} 
     </main>
 
-    {loginOpen && <LoginModal onClose={()=>setLoginOpen(false)} onLogin={login}/>} 
+    {loginOpen && <LoginModal onClose={()=>setLoginOpen(false)} onLogin={login} onVerify={verifyAdminCode}/>} 
     {newPlayerOpen && <PlayerModal onClose={()=>setNewPlayerOpen(false)} onSave={addPlayer}/>}
     {editingPlayer && <PlayerModal player={editingPlayer} onClose={()=>setEditingPlayer(null)} onSave={updatePlayer}/>}
     {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} icons={icons} onClose={()=>setPlayerProfile(null)}/>}
@@ -433,8 +447,8 @@ function Rating({rows,icons,sort,setSort,onPlayer}:{rows:any[];icons:Record<stri
     {inactive.length>0&&<><div className="rating-group-head rating-group-inactive"><div><h3>Пока без игровых дней</h3><p>Игроки есть в базе, но ещё не участвовали в сохранённых игровых днях</p></div><span className="rating-group-count">{inactive.length} игроков</span></div>{renderTable(inactive,false)}</>}
   </section>
 }
-function Admin({session,stats,section,setSection,onLogin,onLogout,players,days,teams,games,dayPlayers,onAdd,onEdit,onDelete,onOpenDay,onEditDay,onQuickEntry,onRefresh,onAddDay,onDeleteDay}:{session:any;stats:any;section:AdminSection;setSection:(s:AdminSection)=>void;onLogin:()=>void;onLogout:()=>void;players:any[];days:any[];teams:any[];games:any[];dayPlayers:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void;onOpenDay:(id:number)=>void;onEditDay:(id:number)=>void;onQuickEntry:()=>void;onRefresh:()=>void;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){
- if(!session)return <section className="admin-login"><div className="admin-lock"><Shield size={32}/></div><div className="eyebrow">ЗАКРЫТЫЙ РАЗДЕЛ</div><h2>Панель управления</h2><p>Здесь управляются игроки, игровые дни, составы и статистика лиги.</p><button className="primary-btn" onClick={onLogin}><LogIn size={17}/> Войти в админку</button></section>;
+function Admin({session,verified,stats,section,setSection,onLogin,onLogout,players,days,teams,games,dayPlayers,onAdd,onEdit,onDelete,onOpenDay,onEditDay,onQuickEntry,onRefresh,onAddDay,onDeleteDay}:{session:any;verified:boolean;stats:any;section:AdminSection;setSection:(s:AdminSection)=>void;onLogin:()=>void;onLogout:()=>void;players:any[];days:any[];teams:any[];games:any[];dayPlayers:any[];onAdd:()=>void;onEdit:(p:any)=>void;onDelete:(id:number)=>void;onOpenDay:(id:number)=>void;onEditDay:(id:number)=>void;onQuickEntry:()=>void;onRefresh:()=>void;onAddDay:()=>void;onDeleteDay:(id:number)=>void}){
+ if(!session || !verified)return <section className="admin-login"><div className="admin-lock"><Shield size={32}/></div><div className="eyebrow">ЗАКРЫТЫЙ РАЗДЕЛ</div><h2>Панель управления</h2><p>Здесь управляются игроки, игровые дни, составы и статистика лиги.</p><button className="primary-btn" onClick={onLogin}><LogIn size={17}/> Войти в админку</button></section>;
  return <section className="admin-page"><aside className="admin-side"><div className="admin-title"><Shield/><div><b>Панель управления</b><small>{session.user?.email}</small></div></div><button className={section==='overview'?'sel':''} onClick={()=>setSection('overview')}><LayoutDashboard/> Обзор</button><button className={section==='players'?'sel':''} onClick={()=>setSection('players')}><Users/> Игроки</button><button className={section==='days'?'sel':''} onClick={()=>setSection('days')}><CalendarDays/> Игровые дни</button><div className="side-bottom"><button onClick={onRefresh}><RefreshCw/> Обновить</button><button onClick={onLogout}><LogOut/> Выйти</button></div></aside><div className="admin-main">{section==='overview'&&<><div className="admin-header"><div><div className="eyebrow">АДМИНИСТРИРОВАНИЕ</div><h1>Обзор</h1><p>Контроль текущего состояния лиги.</p></div></div><div className="metrics"><Metric icon={<Users/>} label="Игроки" value={stats.players}/><Metric icon={<CalendarDays/>} label="Игровые дни" value={stats.days}/><Metric icon={<Trophy/>} label="Матчи" value={stats.games}/><Metric icon={<CircleUserRound/>} label="Участия" value={stats.participants}/></div><div className="quick-grid"><button className="quick-action" onClick={onQuickEntry}><Trophy/><b>Быстрое заполнение</b><span>Выбрать игру и внести статистику во время паузы</span></button><button onClick={onAdd}><Plus/><b>Добавить игрока</b><span>Создать новую карточку игрока</span></button><button onClick={()=>setSection('players')}><Users/><b>Управление игроками</b><span>Редактирование и статистика</span></button><button onClick={()=>setSection('days')}><CalendarDays/><b>Игровые дни</b><span>Редактирование и составы</span></button></div></>}{section==='players'&&<PlayersAdmin players={players} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete}/>} {section==='days'&&<DaysAdmin days={days} teams={teams} games={games} dayPlayers={dayPlayers} onOpen={onOpenDay} onEdit={onEditDay} onAddDay={onAddDay} onDeleteDay={onDeleteDay} />}</div></section>
 }
 function Metric({icon,label,value}:{icon:any;label:string;value:number}){return <div className="metric"><span>{icon}</span><small>{label}</small><strong>{value}</strong></div>}
@@ -794,17 +808,23 @@ function PlayerProfileModal({player,days,teams,dayPlayers,icons,onClose}:{player
   </div>;
 }
 
-function LoginModal({onClose,onLogin}:{onClose:()=>void;onLogin:(e:string,p:string)=>Promise<void>}){
-  const[e,setE]=useState(''),[p,setP]=useState(''),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
-  const submit=async()=>{if(busy)return;setErr('');setBusy(true);try{await onLogin(e,p)}catch(x:any){setErr(x?.message||'Не удалось войти в админку.')}finally{setBusy(false)}};
+function LoginModal({onClose,onLogin,onVerify}:{onClose:()=>void;onLogin:(e:string,p:string)=>Promise<void>;onVerify:(code:string)=>Promise<void>}){
+  const[e,setE]=useState(''),[p,setP]=useState(''),[code,setCode]=useState(''),[stage,setStage]=useState<'password'|'code'>('password'),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
+  const submit=async()=>{if(busy)return;setErr('');setBusy(true);try{await onLogin(e,p);setStage('code')}catch(x:any){setErr(x?.message||'Не удалось войти в админку.')}finally{setBusy(false)}};
+  const verify=async()=>{if(busy)return;setErr('');setBusy(true);try{await onVerify(code)}catch(x:any){setErr(x?.message||'Не удалось подтвердить код.')}finally{setBusy(false)}};
   return <div className="modal-backdrop" onMouseDown={x=>{if(x.target===x.currentTarget)onClose()}}><div className="modal-card small">
-    <button className="modal-x" onClick={onClose}><X/></button><div className="modal-icon"><Shield/></div><div className="eyebrow">АДМИНИСТРАТОР</div><h2>Вход в панель</h2>
-    <form onSubmit={x=>{x.preventDefault();submit()}}>
-      <label>Email<input value={e} onChange={x=>setE(x.target.value)} type="email" autoComplete="username" autoFocus placeholder="admin@example.com"/></label>
+    <button className="modal-x" onClick={onClose}><X/></button><div className="modal-icon"><Shield/></div><div className="eyebrow">АДМИНИСТРАТОР</div><h2>{stage==='password'?'Вход в панель':'Подтверждение входа'}</h2>
+    {stage==='password'?<form onSubmit={x=>{x.preventDefault();submit()}}>
+      <label>Email<input value={e} onChange={x=>setE(x.target.value)} type="email" autoComplete="username" autoFocus placeholder="Email администратора"/></label>
       <label>Пароль<input value={p} onChange={x=>setP(x.target.value)} type="password" autoComplete="current-password" placeholder="Введите пароль"/></label>
       {err&&<div className="error">{err}</div>}
-      <button className="primary-btn full" type="submit" disabled={busy}>{busy?'Выполняю вход…':'Войти в админку'}</button>
-    </form>
+      <button className="primary-btn full" type="submit" disabled={busy}>{busy?'Выполняю вход…':'Продолжить'}</button>
+    </form>:<form onSubmit={x=>{x.preventDefault();verify()}}>
+      <p>Отправила шестизначный код на Email администратора. Он действует 5 минут.</p>
+      <label>Код подтверждения<input value={code} onChange={x=>setCode(x.target.value.replace(/\D/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000" maxLength={6}/></label>
+      {err&&<div className="error">{err}</div>}
+      <button className="primary-btn full" type="submit" disabled={busy||code.length!==6}>{busy?'Проверяю…':'Подтвердить и открыть админку'}</button>
+    </form>}
   </div></div>
 }
 function PlayerModal({player,onClose,onSave}:{player?:any;onClose:()=>void;onSave:(x:any,y?:string,z?:boolean)=>Promise<void>}){const[p,setP]=useState({...player});const[n,setN]=useState('');const[pos,setPos]=useState('');const[gk,setGk]=useState(false);const isEdit=!!player;return <div className="modal-backdrop"><div className="modal-card"><button className="modal-x" onClick={onClose}><X/></button><div className="eyebrow">ИГРОК</div><h2>{isEdit?'Редактирование игрока':'Новый игрок'}</h2>{isEdit?<><label>Имя<input value={p.name||''} onChange={e=>setP({...p,name:e.target.value})}/></label><label>Позиция<input value={p.position||''} onChange={e=>setP({...p,position:e.target.value})}/></label><label className="check"><input type="checkbox" checked={!!p.is_goalkeeper} onChange={e=>setP({...p,is_goalkeeper:e.target.checked})}/> Вратарь</label><button className="primary-btn full" onClick={()=>onSave(p)}>Сохранить</button></>:<><label>Имя<input value={n} onChange={e=>setN(e.target.value)} placeholder="Иван Иванов"/></label><label>Позиция<input value={pos} onChange={e=>setPos(e.target.value)} placeholder="Защитник"/></label><label className="check"><input type="checkbox" checked={gk} onChange={e=>setGk(e.target.checked)}/> Вратарь</label><button className="primary-btn full" onClick={()=>onSave(n,pos,gk)}>Добавить</button></>}</div></div>}
