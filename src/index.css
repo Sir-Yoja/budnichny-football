@@ -570,3 +570,20 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .account-card>.account-profile-header .account-player-title h2{font-size:23px}
  .account-card>.account-profile-header .account-logout-btn{min-height:36px!important;padding:0 12px!important;font-size:11px!important}
 }
+
+/* Кнопка выхода — второстепенное действие, не конкурирует с бейджем роли */
+.account-card>.account-profile-header .account-logout-btn{
+  border:1px solid rgba(145,169,184,.22)!important;
+  background:rgba(145,169,184,.055)!important;
+  color:#aebdc7!important;
+  box-shadow:none!important;
+  font-weight:600!important;
+}
+.account-card>.account-profile-header .account-logout-btn:hover{
+  border-color:rgba(145,169,184,.38)!important;
+  background:rgba(145,169,184,.11)!important;
+  color:#d5e0e6!important;
+  box-shadow:none!important;
+  transform:none!important;
+}
+.account-card>.account-profile-header .account-logout-btn:active{background:rgba(145,169,184,.15)!important}
