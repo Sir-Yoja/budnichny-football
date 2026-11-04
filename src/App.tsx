@@ -138,7 +138,28 @@ export default function App(){
     setTimeout(refresh,250);
   };
   useEffect(()=>{const handler=(event:MessageEvent)=>{if(event.source!==frame.current?.contentWindow)return;if(event.data?.type==="budnichny-day-created"){setDayModal(null);setAdminSection("days");refresh();}else if(event.data?.type==="budnichny-edit-day"){const id=Number(event.data.id);if(Number.isSafeInteger(id)&&id>0){setPlayerProfile(null);setDayModal(null);setTab("admin");setAdminSection("days");setEditDayId(id);}}};window.addEventListener("message",handler);return()=>window.removeEventListener("message",handler);},[refresh]);
-  useEffect(()=>{ const t=setInterval(()=>{ if(getEngine()?.getLeagueState && getEngine()?.sb) refresh(); },2500); return()=>clearInterval(t); },[refresh]);
+  // Не опрашиваем Supabase каждые 2,5 секунды: это создавало постоянную сетевую
+  // нагрузку и лишние перерисовки. Обновляем данные при возвращении пользователя
+  // на вкладку, но не чаще одного раза в 30 секунд. Действия записи по-прежнему
+  // вызывают refresh() напрямую и не зависят от этого ограничения.
+  const lastAutoRefresh=useRef(0);
+  useEffect(()=>{
+    const refreshIfStale=()=>{
+      if(document.visibilityState!=='visible')return;
+      const now=Date.now();
+      if(now-lastAutoRefresh.current<30000)return;
+      lastAutoRefresh.current=now;
+      if(getEngine()?.getLeagueState && getEngine()?.sb)void refresh();
+    };
+    document.addEventListener('visibilitychange',refreshIfStale);
+    window.addEventListener('pageshow',refreshIfStale);
+    window.addEventListener('focus',refreshIfStale);
+    return()=>{
+      document.removeEventListener('visibilitychange',refreshIfStale);
+      window.removeEventListener('pageshow',refreshIfStale);
+      window.removeEventListener('focus',refreshIfStale);
+    };
+  },[refresh]);
 
   const openDay=(id:number)=>{ setPlayerProfile(null); setDayModal(id); setTimeout(()=>getEngine()?.openDay?.(id),80); };
   const openEdit=(id:number)=>{ setPlayerProfile(null); setDayModal(null); setEditDayId(id); };
