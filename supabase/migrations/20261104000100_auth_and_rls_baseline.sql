@@ -297,7 +297,7 @@ end $$;
 grant usage,select on all sequences in schema public to authenticated;
 
 -- Public league data; unapproved participant submissions are never public.
-do $
+do $$
 declare t text;
 begin
  foreach t in array array['game_day_players','game_days','games','match_players','matches','players','teams'] loop
@@ -306,7 +306,7 @@ begin
   execute format('create policy %I on public.%I for update to authenticated using(public.is_site_admin()) with check(public.is_site_admin())',t||'_admin_update',t);
   execute format('create policy %I on public.%I for delete to authenticated using(public.is_site_admin())',t||'_admin_delete',t);
  end loop;
-end $;
+end $$;
 create policy game_player_stats_public_approved on public.game_player_stats for select to anon using(status='approved');
 create policy game_player_stats_authenticated_read on public.game_player_stats for select to authenticated
  using(status='approved' or submitted_by=auth.uid() or public.is_site_admin());
