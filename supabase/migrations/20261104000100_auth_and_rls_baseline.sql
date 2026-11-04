@@ -32,6 +32,7 @@ create unique index if not exists player_link_requests_one_pending_per_user on p
 create table if not exists public.admin_email_challenges(
  id bigint generated always as identity primary key,
  user_id uuid not null references auth.users(id) on delete cascade,
+ session_id uuid not null,
  code_hash text not null, expires_at timestamptz not null,
  attempts integer not null default 0 check(attempts between 0 and 5),
  verified_at timestamptz, created_at timestamptz not null default now()
@@ -62,6 +63,7 @@ returns boolean language sql stable security definer set search_path=''
 as $$
  select auth.uid()='888c101b-d99b-4e8c-8c68-ff0a7e61badd'::uuid
  and exists(select 1 from public.admin_email_challenges c where c.user_id=auth.uid()
+  and c.session_id=(auth.jwt()->>'session_id')::uuid
   and c.verified_at is not null and c.verified_at>now()-interval '15 minutes');
 $$;
 create or replace function public.is_linked_participant_for(p_player_id bigint)
@@ -142,13 +144,13 @@ end; $$;
 
 
 -- Atomic, one-time challenge consumption. Only service_role may call this RPC.
-create or replace function public.consume_admin_email_challenge(p_user_id uuid,p_code_hash text)
+create or replace function public.consume_admin_email_challenge(p_user_id uuid,p_code_hash text,p_session_id uuid)
 returns text language plpgsql security definer set search_path=''
 as $$
 declare c public.admin_email_challenges%rowtype;
 begin
  select * into c from public.admin_email_challenges
-  where user_id=p_user_id order by created_at desc limit 1 for update;
+  where user_id=p_user_id and session_id=p_session_id order by created_at desc limit 1 for update;
  if c.id is null or c.verified_at is not null or c.expires_at<=now() then return 'expired'; end if;
  if c.attempts>=5 then return 'locked'; end if;
  if c.code_hash<>p_code_hash then
@@ -159,8 +161,8 @@ begin
  if not found then return 'expired'; end if;
  return 'verified';
 end; $$;
-revoke all on function public.consume_admin_email_challenge(uuid,text) from public,anon,authenticated;
-grant execute on function public.consume_admin_email_challenge(uuid,text) to service_role;
+revoke all on function public.consume_admin_email_challenge(uuid,text,uuid) from public,anon,authenticated;
+grant execute on function public.consume_admin_email_challenge(uuid,text,uuid) to service_role;
 
 
 create or replace function public.resubmit_match_stat(p_stat_id bigint,p_payload jsonb)
