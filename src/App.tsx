@@ -71,6 +71,41 @@ export default function App(){
 
   const onLoad=()=>{
     const w=getEngine();
+    if(w?.sb && !(w as any).__oauthBridgeInstalled){
+      (w as any).__oauthBridgeInstalled=true;
+      // OAuth returns to the top-level document, while Supabase lives inside srcDoc.
+      // Forward the callback payload to the iframe's Supabase client so it can persist the session.
+      const restoreOAuthSession=async()=>{
+        try{
+          const callbackUrl=new URL(window.location.href);
+          const hash=new URLSearchParams(callbackUrl.hash.replace(/^#/,''));
+          const access_token=hash.get('access_token');
+          const refresh_token=hash.get('refresh_token');
+          const code=callbackUrl.searchParams.get('code');
+          let result:any=null;
+          if(access_token&&refresh_token){
+            result=await w.sb.auth.setSession({access_token,refresh_token});
+          }else if(code){
+            result=await w.sb.auth.exchangeCodeForSession(code);
+          }
+          if(result?.error)throw result.error;
+          if(access_token||refresh_token||code){
+            callbackUrl.hash='';
+            callbackUrl.searchParams.delete('code');
+            window.history.replaceState({},document.title,callbackUrl.pathname+callbackUrl.search);
+            await refresh();
+          }
+        }catch(error){console.error('Не удалось восстановить сессию после OAuth:',error);}
+      };
+      const hasOAuthPayload=window.location.hash.includes('access_token=')||new URLSearchParams(window.location.search).has('code');
+      if(hasOAuthPayload)void restoreOAuthSession();
+      const authListener=w.sb.auth.onAuthStateChange((_event:any,nextSession:any)=>{
+        setSession(nextSession||null);
+        if(!nextSession)setAdminVerified(false);
+        window.setTimeout(()=>{void refresh();},0);
+      });
+      (w as any).__authSubscription=authListener?.data?.subscription;
+    }
     if(w?.sb && !(w as any).__secureAdminUi){
       const requireAdmin=async()=>{
         const check=await w.sb.rpc('is_site_admin');
