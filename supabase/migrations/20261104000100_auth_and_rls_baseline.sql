@@ -182,7 +182,7 @@ begin
   saves=greatest(0,coalesce((p_payload->>'saves')::integer,0)),
   conceded=greatest(0,coalesce((p_payload->>'conceded')::integer,0)),
   goalkeeper=coalesce((p_payload->>'goalkeeper')::boolean,false),
-  status='pending'
+  status='pending',moderation_note=null
  where id=p_stat_id;
 end; $$;
 revoke all on function public.resubmit_match_stat(bigint,jsonb) from public,anon;
