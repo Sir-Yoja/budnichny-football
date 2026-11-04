@@ -472,3 +472,31 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 @media(max-width:760px){.account-match-selectors{grid-template-columns:1fr}.account-stat-fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:600px){.account-card{padding:16px!important;border-radius:14px}.account-profile-header{align-items:flex-start}.account-stat-submit{padding:14px}.account-stat-icon{white-space:normal;flex-wrap:wrap}}
 @media(max-width:480px){.account-stat-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.account-selected-match>small{width:100%;margin-left:0}}
+
+
+/* Кабинет игрока: аккуратная секция заявок и защита от горизонтального вылезания */
+.account-card,
+.account-card *{box-sizing:border-box;min-width:0}
+.account-profile-header h2{overflow-wrap:anywhere;word-break:break-word}
+.account-profile-header>div{min-width:0;flex:1}
+.account-profile-header>.secondary-btn{flex:0 0 auto;white-space:nowrap}
+.account-stat-submit{width:100%;min-width:0;overflow:hidden}
+.account-match-selectors label,
+.account-stat-field{min-width:0}
+.account-match-selectors select{max-width:100%}
+.account-requests-section{margin-top:24px;padding-top:18px;border-top:1px solid rgba(255,255,255,.09)}
+.account-requests-section>h3{margin:0 0 12px!important;color:#f1f5f6;font-size:17px}
+.account-requests-section>.admin-list{display:grid;gap:9px}
+.account-requests-section .admin-day{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 14px;padding:13px 15px;min-width:0}
+.account-requests-section .admin-day>div{display:grid;gap:4px;min-width:0}
+.account-requests-section .admin-day>div>b{font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+.account-requests-section .admin-day>div>small{color:#91a1ad;font-size:11px;line-height:1.35}
+.account-requests-section .admin-day>span{justify-self:end;padding:6px 9px;border:1px solid rgba(137,216,168,.2);border-radius:8px;background:rgba(45,125,81,.09);color:#a9dfba;font-size:12px;white-space:nowrap}
+.account-requests-section .admin-day>small{grid-column:1/-1;color:#aebdc6;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+@media(max-width:600px){
+ .account-profile-header{gap:10px}
+ .account-profile-header>.secondary-btn{padding:8px 10px;font-size:12px}
+ .account-requests-section .admin-day{grid-template-columns:minmax(0,1fr);gap:8px;padding:12px}
+ .account-requests-section .admin-day>span{justify-self:start}
+ .account-stat-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
