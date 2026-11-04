@@ -334,6 +334,15 @@ drop policy if exists game_day_images_admin_insert on storage.objects;
 drop policy if exists game_day_images_admin_delete on storage.objects;
 create policy game_day_images_admin_insert on storage.objects for insert to authenticated
  with check(bucket_id='game-day-images' and public.is_site_admin());
+-- Storage upsert needs SELECT and UPDATE in addition to INSERT.
+-- Keep both permissions restricted to the administrator for this bucket.
+drop policy if exists game_day_images_admin_select on storage.objects;
+create policy game_day_images_admin_select on storage.objects for select to authenticated
+ using(bucket_id='game-day-images' and public.is_site_admin());
+drop policy if exists game_day_images_admin_update on storage.objects;
+create policy game_day_images_admin_update on storage.objects for update to authenticated
+ using(bucket_id='game-day-images' and public.is_site_admin())
+ with check(bucket_id='game-day-images' and public.is_site_admin());
 create policy game_day_images_admin_delete on storage.objects for delete to authenticated
  using(bucket_id='game-day-images' and public.is_site_admin());
 
