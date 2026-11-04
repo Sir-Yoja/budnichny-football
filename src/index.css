@@ -655,3 +655,22 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .account-requests-guest .admin-day{grid-template-columns:minmax(0,1fr);gap:8px}
  .account-request-status{justify-self:start}
 }
+
+/* История личной статистики: дата, матч, статус и комментарий — отдельными строками */
+.account-stat-history{margin-top:22px}
+.account-stat-history>h3{margin:0 0 13px;color:#eaf0f3;font-size:17px;line-height:1.35}
+.account-stat-history-list{display:grid;gap:10px}
+.account-stat-history-item{display:grid;gap:10px;min-width:0;padding:14px 15px;border:1px solid rgba(142,166,179,.16);border-radius:12px;background:rgba(13,32,44,.82)}
+.account-stat-history-main{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 12px;min-width:0}
+.account-stat-history-main>b{color:#edf3f6;font-size:14px;line-height:1.4}
+.account-stat-history-main>span{color:#a4b5bf;font-size:12px;line-height:1.4}
+.account-stat-history-meta{display:flex;align-items:center;gap:8px;min-width:0}
+.account-stat-status{display:inline-flex;align-items:center;min-height:25px;padding:4px 9px;border:1px solid rgba(145,169,184,.2);border-radius:7px;background:rgba(145,169,184,.06);color:#bdcbd2;font-size:11px;font-weight:700;line-height:1.3}
+.account-stat-status-pending{border-color:rgba(207,184,66,.3);background:rgba(207,184,66,.08);color:#e1c85d}
+.account-stat-status-approved{border-color:rgba(91,185,126,.28);background:rgba(91,185,126,.08);color:#9bd8ae}
+.account-stat-status-rejected{border-color:rgba(224,103,103,.28);background:rgba(224,103,103,.08);color:#edaaaa}
+.account-stat-status-needs_correction{border-color:rgba(224,155,83,.3);background:rgba(224,155,83,.08);color:#e7b47d}
+.account-stat-moderation-note{display:grid;gap:4px;padding:10px 11px;border-left:2px solid rgba(207,184,66,.55);border-radius:0 7px 7px 0;background:rgba(207,184,66,.055);min-width:0}
+.account-stat-moderation-note>b{color:#c8b96e;font-size:10px;font-weight:800;letter-spacing:.035em}
+.account-stat-moderation-note>p{margin:0;color:#c1cbd0;font-size:12px;line-height:1.5;overflow-wrap:anywhere;white-space:pre-wrap}
+.account-stat-history-empty{margin:0;color:#91a5b1;font-size:13px;line-height:1.5}
