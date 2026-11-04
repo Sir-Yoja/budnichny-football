@@ -538,7 +538,6 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
  const authProviders=[...(Array.isArray(session?.user?.app_metadata?.providers)?session.user.app_metadata.providers:[]),session?.user?.app_metadata?.provider,...(Array.isArray(session?.user?.identities)?session.user.identities.map((identity:any)=>identity.provider):[])].filter(Boolean).map((provider:any)=>String(provider).toLowerCase());
  const telegramConnected=authProviders.some((provider:string)=>provider.includes('telegram'))||!!(session?.user?.user_metadata?.telegram_username||session?.user?.user_metadata?.telegram_id);
  return <section className="page">
-  {!session&&<div className="section-head"><div><div className="eyebrow">ЛИЧНЫЙ РАЗДЕЛ</div><h2>Кабинет игрока</h2><p>Привяжи аккаунт к своей карточке в лиге и отправляй статистику после проверки доступа.</p></div></div>}
   {!session?<div className="admin-login"><div className="admin-lock"><CircleUserRound size={32}/></div><h2>{authMode==='login'?'Войти в кабинет':'Создать аккаунт'}</h2><p>Выбери удобный способ входа. Администратор входит отдельно через раздел «Админка».</p>
    <div className="quick-grid"><button type="button" onClick={()=>authenticateSocial('custom:telegram')} disabled={authBusy}>Войти через Telegram</button></div>
    <div className="account-auth-divider"><span>или по email</span></div>
