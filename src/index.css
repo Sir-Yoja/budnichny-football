@@ -608,3 +608,50 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   transform:none!important;
 }
 /* В авторизованном кабинете не показываем дублирующее пояснение над карточкой */
+
+/* Кабинет гостя: единая композиция с кабинетом привязанного игрока */
+.account-card:has(.account-link-panel){overflow:hidden}
+.account-card:has(.account-link-panel)>.account-profile-header{padding:28px 28px 24px!important;margin:0!important;border-bottom:1px solid rgba(255,255,255,.09)}
+.account-card:has(.account-link-panel)>.account-link-panel{margin:20px 22px 22px;padding:22px;border:1px solid rgba(207,184,66,.22);border-radius:15px;background:linear-gradient(145deg,rgba(12,31,42,.98),rgba(6,20,29,.98));}
+.account-link-heading{display:grid;gap:7px;margin-bottom:22px}
+.account-link-kicker{color:#cfb842;font-size:10px;font-weight:800;letter-spacing:.12em}
+.account-link-heading h3{margin:0;color:#f3f6f7;font-size:21px;line-height:1.25}
+.account-link-heading p{margin:0;max-width:620px;color:#9db0bb;font-size:13px;line-height:1.55}
+.account-link-fields{display:grid;gap:17px}
+.account-link-field{display:grid;gap:8px;min-width:0}
+.account-link-step{display:flex;align-items:center;gap:9px;color:#cfb842;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.account-link-step b{color:#e4edf1;font-size:13px;letter-spacing:0;text-transform:none}
+.account-link-step i{color:#8499a5;font-size:11px;font-style:normal;font-weight:500;letter-spacing:0;text-transform:none}
+.account-link-field select,.account-link-field input,.account-link-field textarea{box-sizing:border-box;width:100%;min-width:0;min-height:46px;padding:12px 14px;border:1px solid #304653;border-radius:10px;background:#0b202c;color:#edf3f6;font:500 13px 'Manrope',Arial,sans-serif;outline:none;transition:border-color .16s ease,box-shadow .16s ease}
+.account-link-field textarea{min-height:76px;resize:vertical}
+.account-link-field select:focus,.account-link-field input:focus,.account-link-field textarea:focus{border-color:rgba(207,184,66,.72);box-shadow:0 0 0 3px rgba(207,184,66,.09)}
+.account-link-field select:disabled,.account-link-field input:disabled,.account-link-field textarea:disabled{opacity:.6;cursor:not-allowed}
+.account-link-field input::placeholder,.account-link-field textarea::placeholder{color:#718895}
+.account-link-field>small{color:#8095a1;font-size:11px;line-height:1.45}
+.account-link-submit{min-height:44px;margin-top:20px;padding:0 22px;border-radius:10px}
+.account-card:has(.account-link-panel)>.account-requests-guest{margin:0 22px 22px;padding:20px 0 4px;border-top:1px solid rgba(255,255,255,.09)}
+.account-requests-guest>h3{margin:0 0 14px;color:#f1f5f6;font-size:18px}
+.account-requests-empty{display:flex;flex-direction:column;align-items:center;gap:7px;padding:23px 18px;border:1px dashed rgba(142,166,179,.2);border-radius:12px;background:rgba(8,25,35,.5);text-align:center}
+.account-requests-empty-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(145,169,184,.09);color:#9eb1bc;font-size:22px}
+.account-requests-empty>b{color:#dce6eb;font-size:13px}
+.account-requests-empty>p{max-width:360px;margin:0;color:#8196a2;font-size:11px;line-height:1.5}
+.account-requests-guest .admin-list{display:grid;gap:10px}
+.account-requests-guest .admin-day{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 14px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:#0d222e}
+.account-requests-guest .admin-day>div{display:grid;gap:4px;min-width:0}
+.account-requests-guest .admin-day>div>b{color:#edf3f6;font-size:14px}
+.account-requests-guest .admin-day>div>small,.account-requests-guest .admin-day>small{color:#8fa3ae;font-size:11px;line-height:1.4}
+.account-request-status{align-self:start;justify-self:end;padding:6px 9px;border:1px solid rgba(145,169,184,.2);border-radius:8px;background:rgba(145,169,184,.06);color:#b7c7d0;font-size:11px;white-space:nowrap}
+.account-request-pending{border-color:rgba(207,184,66,.28);background:rgba(207,184,66,.08);color:#e2c95d}
+.account-request-approved{border-color:rgba(91,185,126,.28);background:rgba(91,185,126,.08);color:#9bd8ae}
+.account-request-rejected{border-color:rgba(224,103,103,.28);background:rgba(224,103,103,.08);color:#edaaaa}
+.account-requests-guest .admin-day>small{grid-column:1/-1}
+@media(max-width:600px){
+ .account-card:has(.account-link-panel)>.account-profile-header{padding:21px 17px 19px!important}
+ .account-card:has(.account-link-panel)>.account-link-panel{margin:14px 12px 16px;padding:17px 14px}
+ .account-link-heading h3{font-size:19px}
+ .account-link-fields{gap:14px}
+ .account-link-submit{width:100%}
+ .account-card:has(.account-link-panel)>.account-requests-guest{margin:0 14px 16px;padding-top:16px}
+ .account-requests-guest .admin-day{grid-template-columns:minmax(0,1fr);gap:8px}
+ .account-request-status{justify-self:start}
+}
