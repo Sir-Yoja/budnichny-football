@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon, Zap } from 'lucide-react';
 import { legacyHtml } from './legacyHtml';
 
 type Tab = 'home' | 'rating' | 'admin' | 'account';
@@ -28,6 +28,7 @@ export default function App(){
   const [tab,setTab]=useState<Tab>('home');
   const [adminSection,setAdminSection]=useState<AdminSection>('overview');
   const [players,setPlayers]=useState<any[]>([]);
+  const [playerAccountBadges,setPlayerAccountBadges]=useState<any[]>([]);
   const [days,setDays]=useState<any[]>([]);
   const [teams,setTeams]=useState<any[]>([]);
   const [games,setGames]=useState<any[]>([]);
@@ -60,6 +61,7 @@ export default function App(){
     const state=w.getLeagueState?.();
     setPlayers([...(state?.players||w.players||[])]); setDays([...(state?.days||w.days||[])]); setTeams([...(state?.teams||w.teams||[])]); setGames([...(state?.games||w.games||[])]); setDayPlayers([...(state?.dayPlayers||w.dayPlayers||[])]);
     setIcons({...((w.__leagueIcons||{}) as Record<string,string>)});
+    try{const badgeResult=await w.sb?.rpc('get_player_account_badges');if(!badgeResult?.error)setPlayerAccountBadges(badgeResult?.data||[]);else console.warn('Не удалось загрузить отметки аккаунтов игроков:',badgeResult.error);}catch(error){console.warn('Не удалось загрузить отметки аккаунтов игроков:',error);}
     try{
       const current=(await w.sb?.auth.getSession())?.data?.session||null;
       setSession(current);
@@ -433,7 +435,7 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
       {tab==='account' && <AccountPage session={session} adminVerified={adminVerified} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
       {tab==='admin' && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
     </main>
@@ -466,7 +468,8 @@ function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[]
  </section>
 }
 
-function Rating({rows,icons,sort,setSort,onPlayer}:{rows:any[];icons:Record<string,string>;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void}){
+function Rating({rows,icons,playerBadges,sort,setSort,onPlayer}:{rows:any[];icons:Record<string,string>;playerBadges:any[];sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void}){
+  const badgesByPlayer=new Map(playerBadges.map((badge:any)=>[String(badge.player_id),badge]));
   const items=[...rows].sort((a,b)=>{
     const name=(a.p.name||'').localeCompare(b.p.name||'','ru',{sensitivity:'base'});
     if(sort==='name') return name;
@@ -494,7 +497,7 @@ function Rating({rows,icons,sort,setSort,onPlayer}:{rows:any[];icons:Record<stri
     </div>
     {list.map((x,i)=><button className="rating-row rating-row-11" key={x.p.id} onClick={()=>onPlayer(x.p.id)}>
       <span className="rank">{showRank?i+1:'—'}</span>
-      <span className="player-name"><strong>{x.p.name}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small></span>
+      <span className="player-name"><strong><span className="player-name-text">{x.p.name}</span>{(()=>{const badge:any=badgesByPlayer.get(String(x.p.id));return <span className="player-account-badges">{badge?.is_admin&&<span className="player-account-alpha-omega" title="Администратор лиги — Альфа и Омега" aria-label="Администратор лиги — Альфа и Омега">ΑΩ</span>}{badge?.telegram_connected&&<span className="player-account-telegram" title="Аккаунт Telegram привязан" aria-label="Аккаунт Telegram привязан"><Zap size={14} strokeWidth={3}/></span>}</span>})()}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small></span>
       <span>{x.p.position||'Игрок'}</span>
       <span>{x.s.days}</span><span>{x.s.goals}</span><span>{x.s.assists}</span><strong>{x.s.gp}</strong>
       <span>{x.s.saves}</span><span>{x.s.conceded}</span><span>{x.s.ownGoals}</span><b className="rating-value">{x.s.days?Number(x.s.rating).toFixed(2):'—'}</b>
