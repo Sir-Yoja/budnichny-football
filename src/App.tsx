@@ -41,6 +41,7 @@ export default function App(){
   const [editingPlayer,setEditingPlayer]=useState<any|null>(null);
   const [playerProfile,setPlayerProfile]=useState<any|null>(null);
   const [newPlayerOpen,setNewPlayerOpen]=useState(false);
+  const [newDayOpen,setNewDayOpen]=useState(false);
   const [dayModal,setDayModal]=useState<number|null>(null);
   const [editDayId,setEditDayId]=useState<number|null>(null);
   const [menu,setMenu]=useState(false);
@@ -271,23 +272,7 @@ export default function App(){
   const openProfile=(id:number)=>{ const p=players.find(x=>x.id===id); if(p) setPlayerProfile(p); };
   const closeLegacyModal=()=>{ getEngine()?.closeModal?.(); setDayModal(null); refresh(); };
   const closeEditModal=()=>{ setEditDayId(null); document.body.style.overflow=''; };
-  const openAddGameDay=async()=>{
-    const w=getEngine();
-    if(!w){alert('Модуль игрового дня ещё не загрузился. Обнови страницу и попробуй снова.');return;}
-    try{
-      await w.renderAdmin?.();
-      const d=w.document;
-      const form=d?.getElementById('dayForm');
-      const target=d?.getElementById('modalContent');
-      const modal=d?.getElementById('modal');
-      if(!form||!target||!modal){alert('Не удалось открыть форму создания игрового дня. Обнови страницу и попробуй снова.');return;}
-      setDayModal(-1);
-      target.replaceChildren(form);
-      modal.classList.remove('hidden');
-      const date=d.getElementById('date') as HTMLInputElement|null;
-      if(date && !date.value) date.value=new Date().toISOString().slice(0,10);
-    }catch(e){console.error(e);alert('Ошибка открытия формы игрового дня. Подробности доступны в консоли браузера.');}
-  };
+  const openAddGameDay=()=>{setNewDayOpen(true);};
 
   useEffect(()=>{
     const w=getEngine(); const doc=w?.document; if(!doc)return;
@@ -568,6 +553,7 @@ export default function App(){
 
     {loginOpen && <LoginModal onClose={()=>setLoginOpen(false)} onLogin={login} onVerify={verifyAdminCode}/>} 
     {newPlayerOpen && <PlayerModal onClose={()=>setNewPlayerOpen(false)} onSave={addPlayer}/>}
+    {newDayOpen && <CreateGameDayModal engine={getEngine()} onClose={()=>setNewDayOpen(false)} onSaved={async(createdDay)=>{setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);setTab('home');await refresh();setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);}}/>}
     {editingPlayer && <PlayerModal player={editingPlayer} onClose={()=>setEditingPlayer(null)} onSave={updatePlayer}/>}
     {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={()=>setPlayerProfile(null)}/>}
     {dayModal!==null && <div className="legacy-modal-shell"><button className="shell-close" onClick={closeLegacyModal} aria-label="Закрыть окно"><X/></button></div>}
@@ -908,6 +894,54 @@ function QuickEntryModal({players,days,teams,games,dayPlayers,icons,engine,onClo
   };
   const roster=(arr:any[],team:any)=><div className="quick-roster"><div className="quick-team-title"><span className="team-dot" style={{'--team':team?.color||'#cfb842'} as any}></span><b>{adminTeamName(team)}</b><small>{arr.length} игроков</small></div>{arr.length?arr.map(item=>{const p=item.player,d=draft[String(p.id)]||{};return <div className="quick-player" key={p.id}><div className="quick-player-name"><b>{p.name}</b><small>{p.position||'Игрок'}</small></div><label>{icon('goal',20)}<span>Г</span><input type="number" min="0" step="1" value={d.goals??0} onChange={e=>setStat(p.id,'goals',e.target.value)}/></label><label>{icon('pass',20)}<span>П</span><input type="number" min="0" step="1" value={d.assists??0} onChange={e=>setStat(p.id,'assists',e.target.value)}/></label><label>{icon('own',20)}<span>АГ</span><input type="number" min="0" step="1" value={d.own_goals??0} onChange={e=>setStat(p.id,'own_goals',e.target.value)}/></label><label>{icon('saves',20)}<span>С</span><input type="number" min="0" step="1" value={d.saves??0} onChange={e=>setStat(p.id,'saves',e.target.value)}/></label><label>{icon('conceded',20)}<span>Пр</span><input type="number" min="0" step="1" value={d.conceded??0} onChange={e=>setStat(p.id,'conceded',e.target.value)}/></label><button type="button" className={d.goalkeeper?'quick-gk active':'quick-gk'} onClick={()=>setStat(p.id,'goalkeeper',!d.goalkeeper)}>{icon('saves',20)}<span>В воротах</span></button><strong className="quick-rating">{rating(d,item.team_id,p.id)}</strong></div>;}):<div className="quick-empty">В этой команде пока нет назначенных игроков.</div>}</div>;
   return <div className="modal-backdrop quick-backdrop"><div className="modal-card quick-card"><button className="modal-x" onClick={onClose}><X/></button><div className="eyebrow">АДМИН · БЫСТРАЯ СТАТИСТИКА</div><h2>Заполнение во время паузы</h2><p className="muted">Выбери игровой день, создай игру из двух команд или открой существующую. Статистика сохраняется отдельно для каждой игры, затем суммируется в рейтинг дня и общий рейтинг.</p><div className="quick-selects"><label>Игровой день<select value={dayId} onChange={e=>{setDayId(e.target.value);setGameId('');}}><option value="">Выбрать игровой день</option>{days.map(d=><option key={d.id} value={d.id}>{fmtDate(d.game_date)} · {d.place||'Без места'}</option>)}</select></label>{day&&<label>Игра<select value={gameId} onChange={e=>setGameId(e.target.value)}><option value="">Выбрать игру</option>{dayGames.map(g=>{const a=dayTeams.find(t=>String(t.id)===String(g.team_a_id));const b=dayTeams.find(t=>String(t.id)===String(g.team_b_id));return <option key={g.id} value={g.id}>№{g.game_order||dayGames.findIndex(x=>String(x.id)===String(g.id))+1}: {adminTeamName(a)} — {adminTeamName(b)}</option>})}</select></label>}</div>{day&&<div className="quick-create-game"><h3>Создать игру</h3><div className="quick-selects"><label>Команда 1<select value={newTeamA} onChange={e=>setNewTeamA(e.target.value)}><option value="">Выбрать команду</option>{dayTeams.map(t=><option key={t.id} value={t.id}>{adminTeamName(t)}</option>)}</select></label><label>Команда 2<select value={newTeamB} onChange={e=>setNewTeamB(e.target.value)}><option value="">Выбрать команду</option>{dayTeams.map(t=><option key={t.id} value={t.id}>{adminTeamName(t)}</option>)}</select></label></div><button type="button" className="primary-btn" onClick={createGame} disabled={creatingGame||dayTeams.length<2}>{creatingGame?'Создаём…':'+ Создать игру'}</button>{dayTeams.length<2&&<small>Для создания игры нужно минимум две команды в выбранном игровом дне.</small>}</div>}{day&&<div className="quick-day-rating"><h3>Общий рейтинг игрового дня</h3><p>Рейтинг учитывает статистику всего дня; ниже — не рейтинг отдельного матча.</p><div className="quick-day-rating-list">{dayPlayers.filter(x=>String(x.game_day_id)===String(dayId)).map(x=>{const player=players.find(p=>String(p.id)===String(x.player_id));const team=dayTeams.find(t=>String(t.id)===String(x.team_id));const value=engine?.dayRatingForEntry?Number(engine.dayRatingForEntry(x,dayGames)):5;return player?<div key={x.player_id}><span>{player.name}<small>{adminTeamName(team)}</small></span><b>{Number.isFinite(value)?value.toFixed(1):'5.0'}</b></div>:null;})}</div></div>}{game&&<><div className="quick-score"><div><b>{adminTeamName(teamA)}</b><input type="number" min="0" step="1" value={scoreA} onChange={e=>setScoreA(e.target.value)}/></div><span>:</span><div><input type="number" min="0" step="1" value={scoreB} onChange={e=>setScoreB(e.target.value)}/><b>{adminTeamName(teamB)}</b></div></div><div className="quick-rosters">{roster(rosterA,teamA)}{roster(rosterB,teamB)}</div><div className="quick-footer"><span>{error||(statsLoading?'Загружаем статистику выбранного матча…':'Статистика сохраняется отдельно для каждой игры. После сохранения можно выбрать следующую игру.')}</span><button className="primary-btn" onClick={save} disabled={saving||statsLoading}>{saving?'Сохраняем…':'💾 Сохранить'}</button></div></>}</div></div>;
+}
+
+
+function CreateGameDayModal({engine,onClose,onSaved}:{engine:any;onClose:()=>void;onSaved:(day:any)=>Promise<void>}){
+  const localToday=()=>{const d=new Date();const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;};
+  const [date,setDate]=useState(localToday);
+  const [time,setTime]=useState('20:00');
+  const [place,setPlace]=useState('Царицыно');
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState('');
+  useEffect(()=>{document.body.style.overflow='hidden';return()=>{document.body.style.overflow='';};},[]);
+  const save=async()=>{
+    if(saving)return;
+    setError('');
+    if(!date||!time||!place){setError('Заполни дату, время и место игрового дня.');return;}
+    if(!engine?.sb){setError('Нет подключения к Supabase. Обнови страницу и попробуй снова.');return;}
+    setSaving(true);
+    try{
+      const sessionResult=await engine.sb.auth.getSession();
+      if(sessionResult.error)throw sessionResult.error;
+      if(!sessionResult.data?.session)throw new Error('Сессия администратора не найдена. Войди в админку заново.');
+      const adminCheck=await engine.sb.rpc('is_site_admin');
+      if(adminCheck.error)throw adminCheck.error;
+      if(adminCheck.data!==true)throw new Error('Supabase не подтвердил права администратора. Повторно войди в админку.');
+      const result=await engine.sb.from('game_days').insert({game_date:date,game_time:time,place}).select('*').single();
+      if(result.error)throw result.error;
+      if(!result.data?.id)throw new Error('Supabase не вернул созданную запись игрового дня.');
+      await onSaved(result.data);
+      onClose();
+    }catch(e:any){
+      console.error('Ошибка создания игрового дня:',e);
+      const message=e?.message||e?.details||e?.hint||'Неизвестная ошибка Supabase.';
+      setError(`Не удалось создать игровой день: ${message}`);
+    }finally{setSaving(false);}
+  };
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" onMouseDown={e=>{if(e.target===e.currentTarget&&!saving)onClose();}}>
+    <div className="modal-card small">
+      <button type="button" className="modal-x" onClick={onClose} disabled={saving} aria-label="Закрыть"><X/></button>
+      <div className="eyebrow">АДМИН · НОВАЯ ЗАПИСЬ</div>
+      <h2>Новый игровой день</h2>
+      <p className="muted">Создай день отдельно. Команды, матчи и игроки можно добавить позже.</p>
+      <label>Дата игрового дня<input type="date" value={date} onChange={e=>setDate(e.target.value)} required/></label>
+      <label>Время начала<input type="time" value={time} onChange={e=>setTime(e.target.value)} required/></label>
+      <label>Место<select value={place} onChange={e=>setPlace(e.target.value)} required><option value="Царицыно">Царицыно</option><option value="Металлург">Металлург</option></select></label>
+      {error&&<div className="error" role="alert">{error}</div>}
+      <button type="button" className="primary-btn full" onClick={save} disabled={saving||!date||!time||!place}>{saving?'Сохраняем…':'Сохранить игровой день'}</button>
+    </div>
+  </div>;
 }
 
 function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,onClose,onSaved}:{dayId:number;players:any[];days:any[];teams:any[];games:any[];dayPlayers:any[];icons:Record<string,string>;engine:any;onClose:()=>void;onSaved:()=>Promise<void>}){
