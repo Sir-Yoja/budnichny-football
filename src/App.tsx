@@ -23,22 +23,25 @@ const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); 
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const getAttendanceEffects=(entries:any[],days:any[],games:any[],today=localDateKey())=>{
   const DEBUFF_START_DATE='2026-11-05';
-  const datesByDay=new Map<string,string>();
+  const allDatesByDay=new Map<string,string>();
   entries.forEach(entry=>{
     const day=days.find((item:any)=>String(item.id)===String(entry.game_day_id));
     const date=String(day?.game_date||'').slice(0,10);
     const hasGame=games.some((game:any)=>String(game.game_day_id)===String(entry.game_day_id));
-    if(date&&date>=DEBUFF_START_DATE&&date<=today&&hasGame)datesByDay.set(String(entry.game_day_id),date);
+    if(date&&date<=today&&hasGame)allDatesByDay.set(String(entry.game_day_id),date);
   });
-  const dates=[...datesByDay.values()].sort();
+  const allDates=[...allDatesByDay.values()].sort();
   const toMs=(date:string)=>Date.parse(`${date}T00:00:00Z`);
   let streakStart=0;
-  for(let i=1;i<dates.length;i++){
-    const gap=Math.floor((toMs(dates[i])-toMs(dates[i-1]))/86400000);
+  for(let i=1;i<allDates.length;i++){
+    const gap=Math.floor((toMs(allDates[i])-toMs(allDates[i-1]))/86400000);
     if(gap>=8)streakStart=i;
   }
-  const streakDays=dates.length?dates.length-streakStart:0;
+  const streakDays=allDates.length?allDates.length-streakStart:0;
   const loyaltyBonus=Number((Math.floor(streakDays/10)*0.02).toFixed(2));
+
+  // Debuff history starts only on the feature launch date; older gaps are ignored.
+  const dates=allDates.filter(date=>date>=DEBUFF_START_DATE);
   let absenceDebuff=0;
   const addGapPenalty=(gapDays:number,returned:boolean)=>{
     const periods=Math.floor(gapDays/8);
