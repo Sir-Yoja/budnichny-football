@@ -768,7 +768,7 @@ function MatchStatsModeration({engine,players,days,games,teams,dayPlayers,onRefr
   </div>
   {error&&<p className="error">{error}</p>}{message&&<p className="success">{message}</p>}
   {groups.size?Array.from(groups.entries()).map(([key,list])=>{const first=list[0],day=days.find(d=>String(d.id)===String(first.game_day_id)),game=games.find(g=>String(g.id)===String(first.game_id)),a=teams.find(t=>String(t.id)===String(game?.team_a_id)),b=teams.find(t=>String(t.id)===String(game?.team_b_id));
-   const activeMatchRows=rows.filter(r=>String(r.game_id)===String(first.game_id)&&String(r.game_day_id)===String(first.game_day_id)&&r.status!=='rejected');
+   const activeMatchRows=rows.filter(r=>String(r.game_id)===String(first.game_id)&&String(r.game_day_id)===String(first.game_day_id)&&r.status!=='rejected'&&r.status!=='needs_correction');
    const scoreRows=activeMatchRows.filter(r=>r.reported_score_a!=null&&r.reported_score_b!=null);
    const scoreMap=new Map<string,{a:number;b:number;count:number;label:string}>();scoreRows.forEach(r=>{const sa=Number(r.reported_score_a),sb=Number(r.reported_score_b),label=String(sa)+':'+String(sb);const prev=scoreMap.get(label)||{a:sa,b:sb,count:0,label};prev.count++;scoreMap.set(label,prev);});
    const scoreOptions=Array.from(scoreMap.values()).sort((x,y)=>y.count-x.count),consensus=scoreOptions[0]||null,scoreConflict=scoreOptions.length>1,scoreTie=scoreOptions.length>1&&scoreOptions[0].count===scoreOptions[1].count,hasMajority=!!consensus&&consensus.count>scoreRows.length/2,allSame=scoreOptions.length===1&&scoreOptions[0].count===scoreRows.length&&scoreRows.length>0;
