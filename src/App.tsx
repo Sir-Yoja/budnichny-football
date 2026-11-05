@@ -22,36 +22,38 @@ const fmtDate=(v:string)=>{ if(!v)return '—'; const d=new Date(`${v}T00:00:00`
 const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(d).toUpperCase(); };
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const getAttendanceEffects=(entries:any[],days:any[],games:any[],today=localDateKey())=>{
+  const DEBUFF_START_DATE='2026-11-05';
   const datesByDay=new Map<string,string>();
   entries.forEach(entry=>{
     const day=days.find((item:any)=>String(item.id)===String(entry.game_day_id));
     const date=String(day?.game_date||'').slice(0,10);
     const hasGame=games.some((game:any)=>String(game.game_day_id)===String(entry.game_day_id));
-    if(date&&date<=today&&hasGame)datesByDay.set(String(entry.game_day_id),date);
+    if(date&&date>=DEBUFF_START_DATE&&date<=today&&hasGame)datesByDay.set(String(entry.game_day_id),date);
   });
   const dates=[...datesByDay.values()].sort();
-  if(!dates.length)return {loyaltyBonus:0,absenceDebuff:0,streakDays:0};
   const toMs=(date:string)=>Date.parse(`${date}T00:00:00Z`);
   let streakStart=0;
   for(let i=1;i<dates.length;i++){
     const gap=Math.floor((toMs(dates[i])-toMs(dates[i-1]))/86400000);
     if(gap>=8)streakStart=i;
   }
-  const streakDays=dates.length-streakStart;
+  const streakDays=dates.length?dates.length-streakStart:0;
   const loyaltyBonus=Number((Math.floor(streakDays/10)*0.02).toFixed(2));
   let absenceDebuff=0;
   const addGapPenalty=(gapDays:number,returned:boolean)=>{
     const periods=Math.floor(gapDays/8);
     for(let period=1;period<=periods;period++){
       const threshold=period*8;
-      absenceDebuff+=returned&&gapDays<=threshold+3?0.02:0.04;
+      absenceDebuff+=returned&&period===1&&gapDays<=threshold+3?0.02:0.04;
     }
   };
-  for(let i=1;i<dates.length;i++){
-    const gap=Math.max(0,Math.floor((toMs(dates[i])-toMs(dates[i-1]))/86400000));
+  let previousDate=DEBUFF_START_DATE;
+  for(const date of dates){
+    const gap=Math.max(0,Math.floor((toMs(date)-toMs(previousDate))/86400000));
     addGapPenalty(gap,true);
+    previousDate=date;
   }
-  const currentGap=Math.max(0,Math.floor((toMs(today)-toMs(dates[dates.length-1]))/86400000));
+  const currentGap=Math.max(0,Math.floor((toMs(today)-toMs(previousDate))/86400000));
   addGapPenalty(currentGap,false);
   return {loyaltyBonus,absenceDebuff:Number(absenceDebuff.toFixed(2)),streakDays};
 };
