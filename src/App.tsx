@@ -950,6 +950,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
   const [time,setTime]=useState((day?.game_time||'').slice(0,5));
   const [place,setPlace]=useState(day?.place||'');
   const [teamDraft,setTeamDraft]=useState(()=>teams.filter(t=>String(t.game_day_id)===String(dayId)).map(t=>({...t})));
+  const [teamMode,setTeamMode]=useState(()=>Math.max(2,Math.min(4,teams.filter(t=>String(t.game_day_id)===String(dayId)).length||2)));
   const [gameDraft,setGameDraft]=useState(()=>games.filter(g=>String(g.game_day_id)===String(dayId)).map(g=>({...g})));
   const [playerDraft,setPlayerDraft]=useState(()=>{
     const current=dayPlayers.filter(x=>String(x.game_day_id)===String(dayId));
@@ -995,11 +996,11 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
   const save=async()=>{
     if(!engine?.sb){setError('Нет подключения к базе данных.');return;}
     if(!date){setError('Укажи дату игрового дня.');return;}
-    if(!gameDraft.length){setError('Добавь хотя бы одну игру.');return;}
     if(gameDraft.some(g=>!g.team_a_id||!g.team_b_id||String(g.team_a_id)===String(g.team_b_id)||!teamDraft.some(t=>String(t.id)===String(g.team_a_id))||!teamDraft.some(t=>String(t.id)===String(g.team_b_id)))){setError('В каждой игре должны быть две разные существующие команды.');return;}
     for(let i=0;i<gameDraft.length;i++){const g=gameDraft[i];if(!isNonNegativeInteger(g.score_a)||!isNonNegativeInteger(g.score_b)){setError(`Проверь счёт в игре №${i+1}: нужны целые неотрицательные числа.`);return;}}
     const statFields:Array<['goals'|'assists'|'conceded'|'ownGoals'|'saves',string]>=[['goals','голы'],['assists','передачи'],['conceded','пропущенные мячи'],['ownGoals','автоголы'],['saves','сейвы']];
     for(const x of playerDraft){if(!x.teamId)continue;for(const [key,label] of statFields){if(!isNonNegativeInteger(x[key]??0)){setError(`У игрока ${players.find(p=>p.id===x.playerId)?.name||x.playerId} поле «${label}» должно быть целым неотрицательным числом.`);return;}}}
+    if(teamDraft.length!==teamMode||teamMode<2||teamMode>4){setError('Выбери режим игрового дня: 2, 3 или 4 команды.');return;}
     const dayCurrent=dayPlayers.filter(x=>String(x.game_day_id)===String(dayId));
     const dailyRows=playerDraft.filter(x=>x.teamId).map(x=>({game_day_id:dayId,player_id:x.playerId,team_id:Number(x.teamId),goals:Number(x.goals)||0,assists:Number(x.assists)||0,conceded:Number(x.conceded)||0,own_goals:Number(x.ownGoals)||0,saves:Number(x.saves)||0,goalkeeper:!!x.goalkeeper}));
     const oldByPlayer=new Map<string,any>(dayCurrent.map(x=>[String(x.player_id),x]));
@@ -1033,6 +1034,17 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
         clearMatchDetails=true;
       }
       const originalGames=games.filter(g=>String(g.game_day_id)===String(dayId));
+      const originalTeams=teams.filter(t=>String(t.game_day_id)===String(dayId));
+      const removedTeamIds=originalTeams.filter(t=>!teamDraft.some(x=>String(x.id)===String(t.id))).map(t=>t.id);
+      const insertedTeams:any[]=[];
+      for(let i=0;i<teamDraft.length;i++){
+        const t=teamDraft[i];
+        if(Number(t.id)>0){r=await engine.sb.from('teams').update({name:t.name,color:t.color,sort_order:i+1}).eq('id',t.id);if(r.error)throw r.error;}
+        else {const created=await engine.sb.from('teams').insert({game_day_id:dayId,name:t.name,color:t.color,sort_order:i+1}).select('*').single();if(created.error)throw created.error;insertedTeams.push({temporaryId:t.id,team:created.data});}
+      }
+      const teamIdMap=new Map<string,number>(insertedTeams.map(x=>[String(x.temporaryId),Number(x.team.id)]));
+      const savedTeamId=(id:any)=>teamIdMap.get(String(id))??Number(id);
+      const savedGameDraft=gameDraft.map(g=>({...g,team_a_id:savedTeamId(g.team_a_id),team_b_id:savedTeamId(g.team_b_id)}));
       const originalIds=new Set(originalGames.map(g=>String(g.id)));
       const keptIds=new Set(gameDraft.filter(g=>g.id!=null).map(g=>String(g.id)));
       const removedIds=originalGames.filter(g=>!keptIds.has(String(g.id))).map(g=>g.id);
@@ -1049,15 +1061,15 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       }
       let r:any;
       r=await engine.sb.from('game_days').update({game_date:date,game_time:time||null,place:place||null}).eq('id',dayId);if(r.error)throw r.error;
-      for(const t of teamDraft){r=await engine.sb.from('teams').update({name:t.name,color:t.color}).eq('id',t.id);if(r.error)throw r.error;}
       // Update retained games and create new games first. Existing IDs are kept so per-match stats remain linked.
-      for(let i=0;i<gameDraft.length;i++){
-        const g=gameDraft[i];const payload={game_day_id:dayId,team_a_id:Number(g.team_a_id),team_b_id:Number(g.team_b_id),score_a:Number(g.score_a),score_b:Number(g.score_b),game_order:i+1};
+      for(let i=0;i<savedGameDraft.length;i++){
+        const g=savedGameDraft[i];const payload={game_day_id:dayId,team_a_id:Number(g.team_a_id),team_b_id:Number(g.team_b_id),score_a:Number(g.score_a),score_b:Number(g.score_b),game_order:i+1};
         if(g.id!=null&&originalIds.has(String(g.id))){r=await engine.sb.from('games').update(payload).eq('id',g.id);if(r.error)throw r.error;}
         else {r=await engine.sb.from('games').insert(payload);if(r.error)throw r.error;}
       }
       if(dayStatsChanged||!matchRowsBefore.length){
-        if(dailyRows.length){r=await engine.sb.from('game_day_players').upsert(dailyRows,{onConflict:'game_day_id,player_id'});if(r.error)throw r.error;}
+        const mappedDailyRows=dailyRows.map(x=>({...x,team_id:savedTeamId(x.team_id)}));
+        if(mappedDailyRows.length){r=await engine.sb.from('game_day_players').upsert(mappedDailyRows,{onConflict:'game_day_id,player_id'});if(r.error)throw r.error;}
         const selectedIds=new Set(dailyRows.map(x=>String(x.player_id)));const removedPlayerIds=dayRowsBefore.filter(x=>!selectedIds.has(String(x.player_id))).map(x=>x.player_id);
         if(removedPlayerIds.length){r=await engine.sb.from('game_day_players').delete().eq('game_day_id',dayId).in('player_id',removedPlayerIds);if(r.error)throw r.error;}
       }
@@ -1068,6 +1080,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
         if(statGameIds.length){r=await engine.sb.from('game_player_stats').delete().in('game_id',statGameIds);if(r.error)throw r.error;}
       }
       if(removedIds.length){r=await engine.sb.from('games').delete().in('id',removedIds);if(r.error)throw r.error;}
+      if(removedTeamIds.length){r=await engine.sb.from('teams').delete().in('id',removedTeamIds);if(r.error)throw r.error;}
       if(!dayStatsChanged&&matchRowsBefore.length){
         const teamsConsistent=!!engine.matchStatsHaveConsistentTeams?.(matchRowsBefore);
         const safe=teamsConsistent&&(!engine.hasNonZeroDayStats?.(dayRowsBefore)||!!engine.dayTotalsMatchMatchStats?.(dayRowsBefore,matchRowsBefore));
@@ -1090,13 +1103,14 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
     onClose();
     if(postSaveWarning)window.alert(postSaveWarning);
   };
+  const setMode=(count:number)=>{const next=teamDraft.slice(0,count);for(let i=next.length;i<count;i++){const presets=[['Пунктуальные','#FFFFFF'],['Сообразительные','#383838'],['Красивые','#E53935'],['Стильные','#FDD835']];const [name,color]=presets[i];next.push({id:-(i+1),game_day_id:dayId,name,color,sort_order:i+1});}const removed=teamDraft.slice(count);const blocked=removed.some(t=>Number(t.id)>0&&(games.some(g=>String(g.game_day_id)===String(dayId)&&(String(g.team_a_id)===String(t.id)||String(g.team_b_id)===String(t.id)))||dayPlayers.some(p=>String(p.game_day_id)===String(dayId)&&String(p.team_id)===String(t.id))));if(blocked){window.alert('Нельзя уменьшить число команд: у удаляемой команды уже есть матчи или игроки. Сначала убери их из состава и матчей.');return;}const removedIds=removed.map(t=>String(t.id));setTeamMode(count);setTeamDraft(next);setGameDraft(prev=>prev.filter(g=>!removedIds.includes(String(g.team_a_id))&&!removedIds.includes(String(g.team_b_id))));setPlayerDraft(prev=>prev.map(x=>removedIds.includes(String(x.teamId))?{...x,teamId:''}:x));};
   const addGame=()=>{if(teamDraft.length<2)return;setGameDraft(prev=>[...prev,{game_day_id:dayId,team_a_id:teamDraft[0].id,team_b_id:teamDraft[1].id,score_a:0,score_b:0,game_order:prev.length+1}]);};
   return <div className="native-editor-backdrop" role="dialog" aria-modal="true">
     <div className="native-editor-modal">
       <div className="native-editor-top"><div><div className="eyebrow">АДМИНКА · РЕДАКТИРОВАНИЕ</div><h2>Игровой день {fmtDate(date)}</h2><p>Дата, команды, счёт, состав и статистика. Здесь список игроков загружается напрямую из текущих данных сайта.</p></div><button className="native-editor-close" onClick={onClose} aria-label="Закрыть"><X/></button></div>
       <div className="editor-fields"><label><span>📅 Дата игрового дня</span><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label><span>🕐 Время</span><input type="time" value={time} onChange={e=>setTime(e.target.value)}/></label><label><span>🏟 Место</span><select value={place||"Металлург"} onChange={e=>setPlace(e.target.value)}><option value="Металлург">Металлург</option><option value="Царицыно">Царицыно</option></select></label></div>
       <section className="editor-section"><div className="editor-section-head"><div><h3>📷 Картинка составов</h3><p>Можно оставить текущую, заменить её или удалить.</p></div></div>{day.image_url?<img className="editor-image-preview" src={day.image_url} alt="Составы команд"/>:<div className="editor-image-empty">Картинка составов не загружена.</div>}<div className="editor-image-actions"><label className="file-btn">Выбрать файл<input type="file" accept="image/*" onChange={e=>setImageFile(e.target.files?.[0]||null)}/></label>{day.image_url&&<label className="editor-check"><input type="checkbox" checked={removeImage} onChange={e=>setRemoveImage(e.target.checked)}/> Удалить текущую</label>} {imageFile&&<span className="muted">{imageFile.name}</span>}</div></section>
-      <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('team',26)} Команды</h3><p>Название и цвет сохраняются как раньше.</p></div></div><div className="editor-team-grid">{teamDraft.map((t,i)=><div className="editor-team-card" key={t.id}><span>Команда {i+1}</span><select value={t.name||'Пунктуальные'} onChange={e=>{const palette:Record<string,string>={'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'};const name=e.target.value;setTeamDraft(prev=>prev.map(x=>x.id===t.id?{...x,name,color:palette[name]}:x))}}><option value="Пунктуальные">Пунктуальные (Белые)</option><option value="Сообразительные">Сообразительные (Тёмные)</option><option value="Красивые">Красивые (Красные)</option><option value="Стильные">Стильные (Жёлтые)</option></select><input className="editor-color" type="color" value={({'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'} as Record<string,string>)[t.name]||t.color||'#ffffff'} disabled aria-label="Цвет команды"/></div>)}</div></section>
+      <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('team',26)} Команды</h3><p>Выбери режим дня и назначь названия командам. Составы и игры можно заполнить позже.</p></div></div><div className="editor-mode-picker"><span>Режим игрового дня</span><div>{[2,3,4].map(n=><button type="button" key={n} className={teamMode===n?'active':''} onClick={()=>setMode(n)}>{n} команды</button>)}</div></div><div className="editor-team-grid">{teamDraft.map((t,i)=><div className="editor-team-card" key={t.id}><span>Команда {i+1}</span><select value={t.name||'Пунктуальные'} onChange={e=>{const palette:Record<string,string>={'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'};const name=e.target.value;setTeamDraft(prev=>prev.map(x=>x.id===t.id?{...x,name,color:palette[name]}:x))}}><option value="Пунктуальные">Пунктуальные (Белые)</option><option value="Сообразительные">Сообразительные (Тёмные)</option><option value="Красивые">Красивые (Красные)</option><option value="Стильные">Стильные (Жёлтые)</option></select><input className="editor-color" type="color" value={({'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'} as Record<string,string>)[t.name]||t.color||'#ffffff'} disabled aria-label="Цвет команды"/></div>)}</div></section>
       <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('goal',26)} Игры</h3><p>Матчи и счёт.</p></div><button className="editor-secondary-btn" onClick={addGame}>+ Добавить игру</button></div><div className="editor-games">{gameDraft.map((g,i)=><div className="editor-game-row" key={i}><select value={g.team_a_id} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,team_a_id:Number(e.target.value)}:x))}>{teamDraft.map(t=><option key={t.id} value={t.id}>{adminTeamName(t)}</option>)}</select><input type="number" min="0" step="1" value={g.score_a??0} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,score_a:e.target.value===''?'':Number(e.target.value)}:x))}/><span>:</span><input type="number" min="0" step="1" value={g.score_b??0} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,score_b:e.target.value===''?'':Number(e.target.value)}:x))}/><select value={g.team_b_id} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,team_b_id:Number(e.target.value)}:x))}>{teamDraft.map(t=><option key={t.id} value={t.id}>{adminTeamName(t)}</option>)}</select><button type="button" className="editor-delete-btn" onClick={()=>setGameDraft(prev=>prev.filter((_,j)=>j!==i))} aria-label={`Удалить игру ${i+1}`} title="Удалить эту игру">🗑️</button></div>)}</div></section>
       <section className="editor-section">
         <div className="editor-section-head"><div><h3>👥 Состав и статистика игроков</h3><p>Добавляй участников отдельно в каждую команду. Статистика показывается только у выбранных игроков.</p></div></div>
