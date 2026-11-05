@@ -1095,8 +1095,38 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
           postSaveWarning='Матчи обновлены, но дневные итоги оставлены без изменений: не все текущие матчи имеют полную поматчевую статистику. Заполни оставшиеся игры, затем синхронизируй итоги.';
         }
       }
-      if(removeImage&&currentImagePath){await engine.removeGameDayImage?.(currentImagePath);r=await engine.sb.from('game_days').update({image_url:null,image_path:null}).eq('id',dayId);if(r.error)throw r.error;}
-      if(imageFile&&engine.uploadGameDayImage){const uploaded=await engine.uploadGameDayImage(dayId,imageFile,currentImagePath);if(!uploaded)throw new Error('Не удалось загрузить картинку состава.');r=await engine.sb.from('game_days').update({image_url:uploaded.url,image_path:uploaded.path}).eq('id',dayId);if(r.error){await engine.removeGameDayImage?.(uploaded.path);throw r.error;}}
+      // Изображение игрового дня загружается напрямую из нового интерфейса через Supabase Storage.
+      // Ошибка картинки не отменяет сохранение даты, команд, матчей и статистики.
+      if(removeImage&&currentImagePath){
+        const cleared=await engine.sb.from('game_days').update({image_url:null,image_path:null}).eq('id',dayId);
+        if(cleared.error) postSaveWarning=(postSaveWarning?postSaveWarning+' ':'')+'Не удалось отвязать старую картинку: '+cleared.error.message;
+        else {
+          const removed=await engine.sb.storage.from('game-day-images').remove([currentImagePath]);
+          if(removed.error) postSaveWarning=(postSaveWarning?postSaveWarning+' ':'')+'Ссылка на картинку удалена, но файл в хранилище остался: '+removed.error.message;
+        }
+      } else if(imageFile){
+        try{
+          const mimeToExt:Record<string,string>={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/gif':'gif'};
+          const ext=mimeToExt[imageFile.type];
+          if(!ext) throw new Error('Поддерживаются JPG, PNG, WEBP и GIF.');
+          if(imageFile.size>10*1024*1024) throw new Error('Размер изображения превышает 10 МБ.');
+          const path=`game-days/${dayId}-${Date.now()}-${Math.random().toString(36).slice(2,9)}.${ext}`;
+          const uploaded=await engine.sb.storage.from('game-day-images').upload(path,imageFile,{upsert:false,contentType:imageFile.type,cacheControl:'3600'});
+          if(uploaded.error) throw uploaded.error;
+          const publicUrl=engine.sb.storage.from('game-day-images').getPublicUrl(path).data.publicUrl;
+          const linked=await engine.sb.from('game_days').update({image_url:publicUrl,image_path:path}).eq('id',dayId);
+          if(linked.error){
+            await engine.sb.storage.from('game-day-images').remove([path]);
+            throw linked.error;
+          }
+          if(currentImagePath){
+            const removed=await engine.sb.storage.from('game-day-images').remove([currentImagePath]);
+            if(removed.error) postSaveWarning=(postSaveWarning?postSaveWarning+' ':'')+'Новая картинка сохранена, но старая осталась в хранилище: '+removed.error.message;
+          }
+        }catch(imageError:any){
+          postSaveWarning=(postSaveWarning?postSaveWarning+' ':'')+'Игровой день сохранён, но картинка не загрузилась: '+(imageError?.message||'неизвестная ошибка');
+        }
+      }
       await onSaved();
     }catch(e:any){try{await engine.loadPlayers?.();await engine.loadDays?.();}catch{}setError(`Не удалось полностью завершить сохранение: ${e?.message||'ошибка базы данных'}. Часть изменений могла сохраниться; проверь игровой день перед повторной попыткой.`);setSaving(false);return;}
     setSaving(false);
