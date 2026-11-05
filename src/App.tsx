@@ -679,7 +679,7 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
  const submit=async()=>{
   if(!selected||!token.trim()){setError('Выбери себя в списке и введи код приглашения.');return;}
   setBusy(true);setError('');setMessage('');
-  try{const r=await engine.sb.rpc('request_player_link',{p_player_id:Number(selected),p_invitation_token:token.trim(),p_note:note.trim()||null});if(r.error)throw r.error;setMessage('Заявка отправлена администратору. После проверки привязка появится в кабинете.');setToken('');setNote('');await load();}
+  try{const normalizedToken=token.replace(/[^a-fA-F0-9]/g,'').toLowerCase();if(normalizedToken.length!==64)throw new Error('Код должен содержать 64 символа. Скопируй его заново из сообщения администратора.');const r=await engine.sb.rpc('request_player_link',{p_player_id:Number(selected),p_invitation_token:normalizedToken,p_note:note.trim()||null});if(r.error){if(String(r.error.message||'').includes('invitation_invalid_or_expired'))throw new Error('Код не найден, истёк или уже исчерпал лимит использований. Проверь, что скопирован весь код из последнего приглашения.');throw r.error;}setMessage('Заявка отправлена администратору. После проверки привязка появится в кабинете.');setToken('');setNote('');await load();}
   catch(e:any){setError(e?.message||'Не удалось отправить заявку.');}finally{setBusy(false);}
  };
  const authenticateSocial=async(provider:string)=>{setAuthBusy(true);setError('');setAuthMessage('');try{await onLoginSocial(provider);}catch(e:any){setError(e?.message||'Не удалось войти через выбранный сервис.');}finally{setAuthBusy(false);}};
