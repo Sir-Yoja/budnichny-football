@@ -225,9 +225,7 @@ export default function App(){
             await requireAdmin();
             if(name!=='saveDay')return fn(...args);
             // saveDay historically navigated the iframe to the legacy "days" screen
-            // before notifying React. That caused the old UI to flash and looked like
-            // the new form had discarded the save. Keep the iframe on the modal until
-            // the parent refreshes its modern admin view.
+            // before notifying React. Keep the iframe on the modal until the parent refreshes.
             const originalGo=(w as any).go;
             (w as any).go=function(id:string,...goArgs:any[]){
               if(String(id)==='days')return;
@@ -511,8 +509,7 @@ export default function App(){
   const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);};
   const addPlayer=async(name:string,position:string='',gk:boolean=false)=>{const w=getEngine(); const r=await w?.sb?.from('players').insert({name,position:position||null,is_goalkeeper:gk}).select().single(); if(r?.error)throw r.error; await refresh();setNewPlayerOpen(false);};
   const updatePlayer=async(p:any)=>{const w=getEngine();const r=await w?.sb?.from('players').update({name:p.name,position:p.position||null,is_goalkeeper:!!p.is_goalkeeper}).eq('id',p.id).select().single();if(r?.error)throw r.error;await refresh();setEditingPlayer(null);};
-  const deletePlayer=async(id:number)=>{
-    if(!confirm('Удалить игрока и всю его статистику, в том числе по отдельным матчам?'))return;
+  const deletePlayer=async(id:number)=>{    if(!confirm('Удалить игрока и всю его статистику, в том числе по отдельным матчам?'))return;
     const w=getEngine();if(!w?.sb){alert('Нет подключения к базе данных.');return;}
     try{
       const m=await w.sb.from('game_player_stats').delete().eq('player_id',id);if(m.error)throw m.error;
@@ -997,7 +994,21 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       let clearMatchDetails=false;
       if(dayStatsChanged&&matchRowsBefore.length){
         const ok=window.confirm('В этом дне есть статистика по отдельным матчам. Ты изменяешь итоговую статистику дня вручную. Чтобы данные не конфликтовали, поматчевые записи этого дня будут удалены, а дневная статистика сохранится как итоговая. Продолжить?');
-        if(!ok){setSaving(false);return;}        if(!ok){setSaving(false);return;}
+        if(!ok){setSaving(false);return;}
+        clearMatchDetails=true;
+      }
+      const originalGames=games.filter(g=>String(g.game_day_id)===String(dayId));
+      const originalIds=new Set(originalGames.map(g=>String(g.id)));
+      const keptIds=new Set(gameDraft.filter(g=>g.id!=null).map(g=>String(g.id)));
+      const removedIds=originalGames.filter(g=>!keptIds.has(String(g.id))).map(g=>g.id);
+      const changedTeamGameIds=gameDraft.filter(g=>{
+        if(g.id==null||!originalIds.has(String(g.id)))return false;
+        const before=originalGames.find(v=>String(v.id)===String(g.id));
+        return !!before&&(String(before.team_a_id)!==String(g.team_a_id)||String(before.team_b_id)!==String(g.team_b_id));
+      }).map(g=>g.id);
+      let clearChangedGameStats=false;
+      if(!dayStatsChanged&&matchRowsBefore.length&&changedTeamGameIds.length){
+        const ok=window.confirm('Ты меняешь состав команд в уже заполненных матчах. Поматчевая статистика только этих игр будет удалена, чтобы не привязать голы и сейвы к неправильной команде. После сохранения её нужно будет внести заново. Продолжить?');        if(!ok){setSaving(false);return;}
         clearChangedGameStats=true;
       }
       let r:any;
