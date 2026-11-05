@@ -164,7 +164,7 @@ export default function App(){
                 const id=select.value;
                 if(!id)return;
                 const target=checks.find(x=>String(x.dataset.player)===id);
-                if(target){target.checked=true;target.dispatchEvent(new Event('change',{bubbles:true}));}
+                if(target){target.checked=true;target.dispatchEvent(new w.Event('change',{bubbles:true}));}
                 refreshPickers();
               };
               picker.appendChild(label);
@@ -180,7 +180,7 @@ export default function App(){
                 remove.type='button';remove.textContent='×';
                 remove.title='Убрать из команды';
                 remove.style.cssText='border:0;background:transparent;color:#f0a3a3;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;';
-                remove.onclick=()=>{input.checked=false;input.dispatchEvent(new Event('change',{bubbles:true}));refreshPickers();};
+                remove.onclick=()=>{input.checked=false;input.dispatchEvent(new w.Event('change',{bubbles:true}));refreshPickers();};
                 item.append(text,remove);selected.appendChild(item);
               });
               picker.appendChild(selected);
