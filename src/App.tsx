@@ -949,7 +949,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
   const [date,setDate]=useState(day?.game_date||'');
   const [time,setTime]=useState((day?.game_time||'').slice(0,5));
   const [place,setPlace]=useState(day?.place||'');
-  const [teamDraft,setTeamDraft]=useState(()=>teams.filter(t=>String(t.game_day_id)===String(dayId)).map(t=>({...t})));
+  const [teamDraft,setTeamDraft]=useState(()=>{const current=teams.filter(t=>String(t.game_day_id)===String(dayId)).map(t=>({...t}));const presets=[['Пунктуальные','#FFFFFF'],['Сообразительные','#383838'],['Красивые','#E53935'],['Стильные','#FDD835']];while(current.length<2){const i=current.length;current.push({id:-(i+1),game_day_id:dayId,name:presets[i][0],color:presets[i][1],sort_order:i+1});}return current;});
   const [teamMode,setTeamMode]=useState(()=>Math.max(2,Math.min(4,teams.filter(t=>String(t.game_day_id)===String(dayId)).length||2)));
   const [gameDraft,setGameDraft]=useState(()=>games.filter(g=>String(g.game_day_id)===String(dayId)).map(g=>({...g})));
   const [playerDraft,setPlayerDraft]=useState(()=>{
