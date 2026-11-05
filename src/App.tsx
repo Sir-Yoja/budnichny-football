@@ -1097,7 +1097,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       }
       // Изображение игрового дня загружается напрямую из нового интерфейса через Supabase Storage.
       // Ошибка картинки не отменяет сохранение даты, команд, матчей и статистики.
-      if(removeImage&&currentImagePath){
+      if(!imageFile&&removeImage&&currentImagePath){
         const cleared=await engine.sb.from('game_days').update({image_url:null,image_path:null}).eq('id',dayId);
         if(cleared.error) postSaveWarning=(postSaveWarning?postSaveWarning+' ':'')+'Не удалось отвязать старую картинку: '+cleared.error.message;
         else {
