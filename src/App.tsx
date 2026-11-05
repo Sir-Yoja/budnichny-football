@@ -109,6 +109,98 @@ export default function App(){
       });
       (w as any).__authSubscription=authListener?.data?.subscription;
     }
+    if(w?.document && !(w as any).__compactDayPlayersInstalled){
+      const doc=w.document;
+      const originalRenderTeams=(w as any).renderTeamEditors;
+      if(typeof originalRenderTeams==='function'){
+        (w as any).renderTeamEditors=function(...args:any[]){
+          const previous=Array.from(doc.querySelectorAll('#teamEditors .team-editor')).map((card:any,index:number)=>{
+            const name=(card.querySelector('.team-name') as HTMLInputElement|null)?.value||String(index);
+            const selected=Array.from(card.querySelectorAll('input[type="checkbox"][data-player]:checked')).map((x:any)=>String(x.dataset.player));
+            return {name,selected};
+          });
+          const result=originalRenderTeams.apply(this,args);
+          const cards=Array.from(doc.querySelectorAll('#teamEditors .team-editor')) as HTMLElement[];
+          cards.forEach((card,index)=>{
+            const name=(card.querySelector('.team-name') as HTMLInputElement|null)?.value||String(index);
+            const saved=previous.find((x:any)=>x.name===name)||previous[index];
+            if(!saved)return;
+            card.querySelectorAll('input[type="checkbox"][data-player]').forEach((x:any)=>{x.checked=saved.selected.includes(String(x.dataset.player));});
+          });
+          const refreshPickers=()=>{
+            const all=Array.from(doc.querySelectorAll('#teamEditors .team-editor')) as HTMLElement[];
+            const assigned=new Set<string>();
+            all.forEach(card=>card.querySelectorAll('input[type="checkbox"][data-player]:checked').forEach((x:any)=>assigned.add(String(x.dataset.player))));
+            all.forEach(card=>{
+              const list=card.querySelector('.players-list') as HTMLElement|null;
+              if(!list)return;
+              const checks=Array.from(list.querySelectorAll('input[type="checkbox"][data-player]')) as HTMLInputElement[];
+              if(!checks.length)return;
+              list.style.display='none';
+              card.querySelector('.compact-player-picker')?.remove();
+              const picker=doc.createElement('div');
+              picker.className='compact-player-picker';
+              picker.style.cssText='display:grid;gap:9px;margin:10px 0 2px;';
+              const label=doc.createElement('label');
+              label.textContent='Добавить игрока в команду';
+              label.style.cssText='display:block;font-size:13px;color:#aebdc7;';
+              const select=doc.createElement('select');
+              select.style.cssText='width:100%;min-height:44px;padding:10px 12px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#0b1118;color:#edf2f5;font:inherit;';
+              const placeholder=doc.createElement('option');
+              placeholder.value='';
+              placeholder.textContent='Выбрать игрока…';
+              select.appendChild(placeholder);
+              checks.forEach(input=>{
+                const id=String(input.dataset.player);
+                const labelText=(input.closest('label')?.textContent||'').trim();
+                const option=doc.createElement('option');
+                option.value=id;
+                option.textContent=labelText;
+                option.disabled=assigned.has(id);
+                if(input.checked)option.disabled=true;
+                select.appendChild(option);
+              });
+              select.onchange=()=>{
+                const id=select.value;
+                if(!id)return;
+                const target=checks.find(x=>String(x.dataset.player)===id);
+                if(target){target.checked=true;target.dispatchEvent(new Event('change',{bubbles:true}));}
+                refreshPickers();
+              };
+              picker.appendChild(label);
+              picker.appendChild(select);
+              const selected=doc.createElement('div');
+              selected.style.cssText='display:flex;flex-wrap:wrap;gap:7px;';
+              checks.filter(x=>x.checked).forEach(input=>{
+                const item=doc.createElement('span');
+                item.style.cssText='display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid rgba(255,255,255,.13);border-radius:8px;background:rgba(255,255,255,.045);font-size:13px;color:#edf2f5;';
+                const name=(input.closest('label')?.textContent||'').trim();
+                const text=doc.createElement('span');text.textContent=name;
+                const remove=doc.createElement('button');
+                remove.type='button';remove.textContent='×';
+                remove.title='Убрать из команды';
+                remove.style.cssText='border:0;background:transparent;color:#f0a3a3;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;';
+                remove.onclick=()=>{input.checked=false;input.dispatchEvent(new Event('change',{bubbles:true}));refreshPickers();};
+                item.append(text,remove);selected.appendChild(item);
+              });
+              picker.appendChild(selected);
+              card.insertBefore(picker,list);
+            });
+            // Подписываем цвета только в административных списках; значения команд не меняются.
+            const colorNames:Record<string,string>={'Пунктуальные':'Белые','Сообразительные':'Тёмные','Красивые':'Красные','Стильные':'Жёлтые'};
+            ['#teamEditors','#gameEditors'].forEach(selector=>{
+              doc.querySelectorAll(selector+' select option').forEach((option:any)=>{
+                const extra=colorNames[String(option.value)];
+                if(extra&&!String(option.textContent).includes('('))option.textContent=String(option.textContent).trim()+' ('+extra+')';
+              });
+            });
+          };
+          refreshPickers();
+          return result;
+        };
+      }
+      (w as any).__compactDayPlayersInstalled=true;
+    }
     if(w?.sb && !(w as any).__secureAdminUi){
       const requireAdmin=async()=>{
         const check=await w.sb.rpc('is_site_admin');
