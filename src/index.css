@@ -897,3 +897,43 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .hero-public .hero-main-title span:first-child,
  .hero-public .hero-main-title span:last-child{animation:none;background-position:50% 50%}
 }
+
+
+/* Layering and spacing polish: keep the navigation above scrolling content */
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:100;
+  isolation:isolate;
+  background:rgba(6,17,25,.96);
+  -webkit-backdrop-filter:blur(16px);
+  backdrop-filter:blur(16px);
+  box-shadow:0 8px 22px rgba(0,0,0,.22);
+  border-bottom:1px solid rgba(207,184,66,.16);
+}
+.topbar .nav{position:relative;z-index:1}
+.topbar .nav button{position:relative;z-index:1}
+
+/* Account: inset inner panels so they no longer touch the outer card edges */
+.admin-card.account-card>.account-stat-submit{
+  width:calc(100% - 36px);
+  margin:20px 18px 0;
+}
+.admin-card.account-card>.account-requests-section{
+  margin:22px 18px 18px;
+  padding:18px 0 2px;
+}
+.admin-card.account-card>.account-requests-section>.admin-list{
+  padding:0;
+}
+@media(max-width:600px){
+  .admin-card.account-card>.account-stat-submit{
+    width:calc(100% - 24px);
+    margin:16px 12px 0;
+    padding:15px;
+  }
+  .admin-card.account-card>.account-requests-section{
+    margin:18px 12px 14px;
+    padding-top:15px;
+  }
+}
