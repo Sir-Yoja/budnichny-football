@@ -221,7 +221,21 @@ export default function App(){
       for(const name of ['saveDay','saveEditDay','deletePlayer','deleteGameDay','saveQuickEntry','quickSave']){
         const fn=(w as any)[name];
         if(typeof fn==='function' && !(fn as any).__adminGuarded){
-          const guarded=async(...args:any[])=>{await requireAdmin();return fn(...args);};
+          const guarded=async(...args:any[])=>{
+            await requireAdmin();
+            if(name!=='saveDay')return fn(...args);
+            // saveDay historically navigated the iframe to the legacy "days" screen
+            // before notifying React. That caused the old UI to flash and looked like
+            // the new form had discarded the save. Keep the iframe on the modal until
+            // the parent refreshes its modern admin view.
+            const originalGo=(w as any).go;
+            (w as any).go=function(id:string,...goArgs:any[]){
+              if(String(id)==='days')return;
+              return originalGo?.call(w,id,...goArgs);
+            };
+            try{return await fn(...args);}
+            finally{(w as any).go=originalGo;}
+          };
           (guarded as any).__adminGuarded=true;
           (w as any)[name]=guarded;
         }
@@ -998,147 +1012,3 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       let clearChangedGameStats=false;
       if(!dayStatsChanged&&matchRowsBefore.length&&changedTeamGameIds.length){
         const ok=window.confirm('Ты меняешь состав команд в уже заполненных матчах. Поматчевая статистика только этих игр будет удалена, чтобы не привязать голы и сейвы к неправильной команде. После сохранения её нужно будет внести заново. Продолжить?');
-        if(!ok){setSaving(false);return;}
-        clearChangedGameStats=true;
-      }
-      let r:any;
-      r=await engine.sb.from('game_days').update({game_date:date,game_time:time||null,place:place||null}).eq('id',dayId);if(r.error)throw r.error;
-      for(const t of teamDraft){r=await engine.sb.from('teams').update({name:t.name,color:t.color}).eq('id',t.id);if(r.error)throw r.error;}
-      // Update retained games and create new games first. Existing IDs are kept so per-match stats remain linked.
-      for(let i=0;i<gameDraft.length;i++){
-        const g=gameDraft[i];const payload={game_day_id:dayId,team_a_id:Number(g.team_a_id),team_b_id:Number(g.team_b_id),score_a:Number(g.score_a),score_b:Number(g.score_b),game_order:i+1};
-        if(g.id!=null&&originalIds.has(String(g.id))){r=await engine.sb.from('games').update(payload).eq('id',g.id);if(r.error)throw r.error;}
-        else {r=await engine.sb.from('games').insert(payload);if(r.error)throw r.error;}
-      }
-      if(dayStatsChanged||!matchRowsBefore.length){
-        if(dailyRows.length){r=await engine.sb.from('game_day_players').upsert(dailyRows,{onConflict:'game_day_id,player_id'});if(r.error)throw r.error;}
-        const selectedIds=new Set(dailyRows.map(x=>String(x.player_id)));const removedPlayerIds=dayRowsBefore.filter(x=>!selectedIds.has(String(x.player_id))).map(x=>x.player_id);
-        if(removedPlayerIds.length){r=await engine.sb.from('game_day_players').delete().eq('game_day_id',dayId).in('player_id',removedPlayerIds);if(r.error)throw r.error;}
-      }
-      // Only remove detailed match rows after game metadata and any replacement day totals saved successfully.
-      if(clearMatchDetails){r=await engine.sb.from('game_player_stats').delete().eq('game_day_id',dayId);if(r.error)throw r.error;}
-      else {
-        const statGameIds=[...new Set([...removedIds,...(clearChangedGameStats?changedTeamGameIds:[])].map(Number))];
-        if(statGameIds.length){r=await engine.sb.from('game_player_stats').delete().in('game_id',statGameIds);if(r.error)throw r.error;}
-      }
-      if(removedIds.length){r=await engine.sb.from('games').delete().in('id',removedIds);if(r.error)throw r.error;}
-      if(!dayStatsChanged&&matchRowsBefore.length){
-        const teamsConsistent=!!engine.matchStatsHaveConsistentTeams?.(matchRowsBefore);
-        const safe=teamsConsistent&&(!engine.hasNonZeroDayStats?.(dayRowsBefore)||!!engine.dayTotalsMatchMatchStats?.(dayRowsBefore,matchRowsBefore));
-        const completeNow=engine.isDayMatchStatsComplete?await engine.isDayMatchStatsComplete(Number(dayId)):false;
-        if(safe&&completeNow){
-          const zeroIds=matchRowsBefore.filter(x=>removedIds.some((id:any)=>String(id)===String(x.game_id))).map(x=>x.player_id);
-          const sync=await engine.syncDayAggregateFromMatchStats?.(Number(dayId),{force:true,zeroPlayerIds:zeroIds});
-          if(sync?.synced===false)postSaveWarning='Матчи обновлены, но дневные итоги не синхронизированы из-за конфликта команды или статистики. Проверь данные вручную.';
-        }else if(!safe){
-          postSaveWarning='Матчи и команды обновлены. Дневные итоги оставлены без изменений, потому что они не совпадают с поматчевой статистикой.';
-        }else{
-          postSaveWarning='Матчи обновлены, но дневные итоги оставлены без изменений: не все текущие матчи имеют полную поматчевую статистику. Заполни оставшиеся игры, затем синхронизируй итоги.';
-        }
-      }
-      if(removeImage&&currentImagePath){await engine.removeGameDayImage?.(currentImagePath);r=await engine.sb.from('game_days').update({image_url:null,image_path:null}).eq('id',dayId);if(r.error)throw r.error;}
-      if(imageFile&&engine.uploadGameDayImage){const uploaded=await engine.uploadGameDayImage(dayId,imageFile,currentImagePath);if(!uploaded)throw new Error('Не удалось загрузить картинку состава.');r=await engine.sb.from('game_days').update({image_url:uploaded.url,image_path:uploaded.path}).eq('id',dayId);if(r.error){await engine.removeGameDayImage?.(uploaded.path);throw r.error;}}
-      await onSaved();
-    }catch(e:any){try{await engine.loadPlayers?.();await engine.loadDays?.();}catch{}setError(`Не удалось полностью завершить сохранение: ${e?.message||'ошибка базы данных'}. Часть изменений могла сохраниться; проверь игровой день перед повторной попыткой.`);setSaving(false);return;}
-    setSaving(false);
-    onClose();
-    if(postSaveWarning)window.alert(postSaveWarning);
-  };
-  const addGame=()=>{if(teamDraft.length<2)return;setGameDraft(prev=>[...prev,{game_day_id:dayId,team_a_id:teamDraft[0].id,team_b_id:teamDraft[1].id,score_a:0,score_b:0,game_order:prev.length+1}]);};
-  return <div className="native-editor-backdrop" role="dialog" aria-modal="true">
-    <div className="native-editor-modal">
-      <div className="native-editor-top"><div><div className="eyebrow">АДМИНКА · РЕДАКТИРОВАНИЕ</div><h2>Игровой день {fmtDate(date)}</h2><p>Дата, команды, счёт, состав и статистика. Здесь список игроков загружается напрямую из текущих данных сайта.</p></div><button className="native-editor-close" onClick={onClose} aria-label="Закрыть"><X/></button></div>
-      <div className="editor-fields"><label><span>📅 Дата игрового дня</span><input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label><label><span>🕐 Время</span><input type="time" value={time} onChange={e=>setTime(e.target.value)}/></label><label><span>🏟 Место</span><select value={place||"Металлург"} onChange={e=>setPlace(e.target.value)}><option value="Металлург">Металлург</option><option value="Царицыно">Царицыно</option></select></label></div>
-      <section className="editor-section"><div className="editor-section-head"><div><h3>📷 Картинка составов</h3><p>Можно оставить текущую, заменить её или удалить.</p></div></div>{day.image_url?<img className="editor-image-preview" src={day.image_url} alt="Составы команд"/>:<div className="editor-image-empty">Картинка составов не загружена.</div>}<div className="editor-image-actions"><label className="file-btn">Выбрать файл<input type="file" accept="image/*" onChange={e=>setImageFile(e.target.files?.[0]||null)}/></label>{day.image_url&&<label className="editor-check"><input type="checkbox" checked={removeImage} onChange={e=>setRemoveImage(e.target.checked)}/> Удалить текущую</label>} {imageFile&&<span className="muted">{imageFile.name}</span>}</div></section>
-      <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('team',26)} Команды</h3><p>Название и цвет сохраняются как раньше.</p></div></div><div className="editor-team-grid">{teamDraft.map((t,i)=><div className="editor-team-card" key={t.id}><span>Команда {i+1}</span><select value={t.name||'Пунктуальные'} onChange={e=>{const palette:Record<string,string>={'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'};const name=e.target.value;setTeamDraft(prev=>prev.map(x=>x.id===t.id?{...x,name,color:palette[name]}:x))}}><option value="Пунктуальные">Пунктуальные (Белые)</option><option value="Сообразительные">Сообразительные (Тёмные)</option><option value="Красивые">Красивые (Красные)</option><option value="Стильные">Стильные (Жёлтые)</option></select><input className="editor-color" type="color" value={({'Пунктуальные':'#FFFFFF','Сообразительные':'#383838','Красивые':'#E53935','Стильные':'#FDD835'} as Record<string,string>)[t.name]||t.color||'#ffffff'} disabled aria-label="Цвет команды"/></div>)}</div></section>
-      <section className="editor-section"><div className="editor-section-head"><div><h3>{icon('goal',26)} Игры</h3><p>Матчи и счёт.</p></div><button className="editor-secondary-btn" onClick={addGame}>+ Добавить игру</button></div><div className="editor-games">{gameDraft.map((g,i)=><div className="editor-game-row" key={i}><select value={g.team_a_id} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,team_a_id:Number(e.target.value)}:x))}>{teamDraft.map(t=><option key={t.id} value={t.id}>{adminTeamName(t)}</option>)}</select><input type="number" min="0" step="1" value={g.score_a??0} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,score_a:e.target.value===''?'':Number(e.target.value)}:x))}/><span>:</span><input type="number" min="0" step="1" value={g.score_b??0} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,score_b:e.target.value===''?'':Number(e.target.value)}:x))}/><select value={g.team_b_id} onChange={e=>setGameDraft(prev=>prev.map((x,j)=>j===i?{...x,team_b_id:Number(e.target.value)}:x))}>{teamDraft.map(t=><option key={t.id} value={t.id}>{adminTeamName(t)}</option>)}</select><button type="button" className="editor-delete-btn" onClick={()=>setGameDraft(prev=>prev.filter((_,j)=>j!==i))} aria-label={`Удалить игру ${i+1}`} title="Удалить эту игру">🗑️</button></div>)}</div></section>
-      <section className="editor-section">
-        <div className="editor-section-head"><div><h3>👥 Состав и статистика игроков</h3><p>Добавляй участников отдельно в каждую команду. Статистика показывается только у выбранных игроков.</p></div></div>
-        <div className="editor-legend">{icon('goal',22)} Гол · {icon('pass',22)} Пас · {icon('saves',22)} Сейвы · {icon('conceded',22)} Пропустил · {icon('own',22)} Автогол · {icon('rating',22)} Рейтинг дня</div>
-        <div className="editor-roster-teams">
-          {teamDraft.map((team,i)=>{
-            const members=playerDraft.filter(x=>String(x.teamId)===String(team.id));
-            const available=players.filter(p=>!playerDraft.some(x=>String(x.playerId)===String(p.id)&&!!x.teamId));
-            return <div className="editor-roster-team" key={team.id}>
-              <div className="editor-roster-team-head"><div><h4><span className="editor-team-dot" style={{background:team.color||'#cfb842'}}/> {adminTeamName(team)||`Команда ${i+1}`}</h4><small>Игроков в составе: {members.length}</small></div></div>
-              <label className="editor-add-player-label" htmlFor={`editor-add-player-${team.id}`}>Добавить игрока в команду</label>
-              <select id={`editor-add-player-${team.id}`} className="editor-add-player-select" value="" onChange={e=>{if(e.target.value)addPlayerToTeam(Number(team.id),Number(e.target.value));}}>
-                <option value="">+ Выбрать игрока из базы</option>
-                {available.map(p=><option key={p.id} value={p.id}>{p.name}{p.position?` — ${p.position}`:''}</option>)}
-              </select>
-              <div className="editor-players">
-                {members.length===0?<div className="editor-roster-empty">Пока никто не добавлен.</div>:members.map(x=>{
-                  const p=players.find(p=>String(p.id)===String(x.playerId));
-                  return p?playerStats(p,x):null;
-                })}
-              </div>
-            </div>;
-          })}
-        </div>
-      </section>
-      {error&&<div className="editor-error">{error}</div>}
-      <div className="native-editor-footer"><button className="editor-cancel-btn" onClick={onClose} disabled={saving}>Отмена</button><button className="editor-save-btn" onClick={save} disabled={saving}>{saving?'Сохраняем…':'💾 Сохранить ВСЁ'}</button></div>
-    </div>
-  </div>;
-}
-
-function PlayerProfileModal({player,days,teams,dayPlayers,icons,onClose,engine}:{player:any;days:any[];teams:any[];dayPlayers:any[];icons:Record<string,string>;onClose:()=>void;engine:any}){
-  const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
-  const getEngine=()=>engine;
-  const entries:any[]=getEngine()?.playerDayEntries?.(player)||dayPlayers.filter(x=>String(x.player_id)===String(player.id)).filter((x,i,a)=>a.findIndex(y=>String(y.game_day_id)===String(x.game_day_id))===i);
-  const playedDays=entries.length;
-  const canonicalTotals=getEngine()?.playerTotals?.(player);
-  const totals={
-    goals:canonicalTotals?.goals??entries.reduce((s,x)=>s+(+x.goals||0),0),
-    assists:canonicalTotals?.assists??entries.reduce((s,x)=>s+(+x.assists||0),0),
-    saves:canonicalTotals?.saves??entries.reduce((s,x)=>s+(+x.saves||0),0),
-    conceded:canonicalTotals?.conceded??entries.reduce((s,x)=>s+(+x.conceded||0),0),
-    ownGoals:canonicalTotals?.ownGoals??entries.reduce((s,x)=>s+(+x.own_goals||0),0),
-  };
-  const history=entries.map(x=>{
-    const d=days.find(v=>v.id===x.game_day_id); const t=teams.find(v=>v.id===x.team_id);
-    const r=getEngine()?.teamResultsForDay?.(x.game_day_id,x.team_id,undefined)||{wins:0,draws:0,losses:0,played:0};
-    const rawRating=Number(getEngine()?.dayRatingForEntry?.(x)); const rating=Number.isFinite(rawRating)?rawRating:(player.is_goalkeeper?5.5:5);
-    return {x,d,t,r,rating};
-  }).sort((a,b)=>(b.d?.game_date||'').localeCompare(a.d?.game_date||''));
-  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const overall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5));
-  return <div className="modal-backdrop profile-backdrop">
-    <div className="modal-card profile-card">
-      <button className="modal-x" onClick={onClose} aria-label="Закрыть"><X/></button>
-      <div className="eyebrow">ПРОФИЛЬ ИГРОКА</div>
-      <div className="profile-title-row"><div><h2>{player.name}</h2><p className="muted">{player.position||'Игрок'}{player.is_goalkeeper?' · Вратарь':''}</p></div><div className="profile-rating"><span>{icon('rating',38)}</span><small>Общий рейтинг</small><b>{overall.toFixed(2)}</b><em className={playedDays>=3?'profile-rating-status confirmed':'profile-rating-status preliminary'}>{playedDays>=3?'Подтверждённый рейтинг':`Предварительный · ещё ${3-playedDays} ${playedDays===2?'игровой день':'игровых дня'} до подтверждения`}</em></div></div>
-      <div className="profile-stat-grid">
-        <div className="profile-stat">{icon('goal',30)}<small>Голы</small><b>{totals.goals}</b></div>
-        <div className="profile-stat">{icon('pass',30)}<small>Пасы</small><b>{totals.assists}</b></div>
-        <div className="profile-stat">{icon('gp',30)}<small>Г+П</small><b>{totals.goals+totals.assists}</b></div>
-        <div className="profile-stat">{icon('saves',30)}<small>Сейвы</small><b>{totals.saves}</b></div>
-        <div className="profile-stat">{icon('conceded',30)}<small>Пропущено</small><b>{totals.conceded}</b></div>
-        <div className="profile-stat">{icon('own',30)}<small>Автоголы</small><b>{totals.ownGoals}</b></div>
-        <div className="profile-stat">{icon('day',30)}<small>Игровые дни</small><b>{playedDays}</b></div>
-      </div>
-      <div className="profile-section-title"><div><div className="eyebrow">ИСТОРИЯ</div><h3>Выступления</h3></div></div>
-      {history.length?<div className="profile-history-wrap"><table className="stats-table history-table profile-history"><thead><tr><th>Дата</th><th>Команда</th><th>Результат</th><th>Г</th><th>П</th><th>Г+П</th><th>С</th><th>Пр</th><th>АГ</th><th>Рейтинг дня</th></tr></thead><tbody>{history.map(h=><tr key={h.x.id||`${h.x.game_day_id}-${h.x.player_id}`}><td>{h.d?fmtDate(h.d.game_date):'—'}</td><td><span className="team-dot" style={{'--team':h.t?.color||'#fff'} as any}></span>{h.t?.name||'—'}</td><td><span className="result-line"><span>🏆 {h.r.wins}</span><span>➖ {h.r.draws}</span><span>✕ {h.r.losses}</span></span></td><td>{+h.x.goals||0}</td><td>{+h.x.assists||0}</td><td><b>{(+h.x.goals||0)+(+h.x.assists||0)}</b></td><td>{+h.x.saves||0}</td><td>{+h.x.conceded||0}</td><td>{+h.x.own_goals||0}</td><td><b className="profile-day-rating">{h.rating.toFixed(1)}</b></td></tr>)}</tbody></table></div>:<div className="profile-empty">Статистика по игровым дням пока не заполнена.</div>}
-    </div>
-  </div>;
-}
-
-function LoginModal({onClose,onLogin,onVerify}:{onClose:()=>void;onLogin:(e:string,p:string)=>Promise<void>;onVerify:(code:string)=>Promise<void>}){
-  const[e,setE]=useState(''),[p,setP]=useState(''),[code,setCode]=useState(''),[stage,setStage]=useState<'password'|'code'>('password'),[err,setErr]=useState(''),[busy,setBusy]=useState(false);
-  const submit=async()=>{if(busy)return;setErr('');setBusy(true);try{await onLogin(e,p);setStage('code')}catch(x:any){setErr(x?.message||'Не удалось войти в админку.')}finally{setBusy(false)}};
-  const verify=async()=>{if(busy)return;setErr('');setBusy(true);try{await onVerify(code)}catch(x:any){setErr(x?.message||'Не удалось подтвердить код.')}finally{setBusy(false)}};
-  return <div className="modal-backdrop" onMouseDown={x=>{if(x.target===x.currentTarget)onClose()}}><div className="modal-card small">
-    <button className="modal-x" onClick={onClose}><X/></button><div className="modal-icon"><Shield/></div><div className="eyebrow">АДМИНИСТРАТОР</div><h2>{stage==='password'?'Вход в панель':'Подтверждение входа'}</h2>
-    {stage==='password'?<form onSubmit={x=>{x.preventDefault();submit()}}>
-      <label>Email<input value={e} onChange={x=>setE(x.target.value)} type="email" autoComplete="username" autoFocus placeholder="Email администратора"/></label>
-      <label>Пароль<input value={p} onChange={x=>setP(x.target.value)} type="password" autoComplete="current-password" placeholder="Введите пароль"/></label>
-      {err&&<div className="error">{err}</div>}
-      <button className="primary-btn full" type="submit" disabled={busy}>{busy?'Выполняю вход…':'Продолжить'}</button>
-    </form>:<form onSubmit={x=>{x.preventDefault();verify()}}>
-      <p>Отправила шестизначный код на Email администратора. Он действует 5 минут.</p>
-      <label>Код подтверждения<input value={code} onChange={x=>setCode(x.target.value.replace(/\D/g,'').slice(0,6))} inputMode="numeric" autoComplete="one-time-code" autoFocus placeholder="000000" maxLength={6}/></label>
-      {err&&<div className="error">{err}</div>}
-      <button className="primary-btn full" type="submit" disabled={busy||code.length!==6}>{busy?'Проверяю…':'Подтвердить и открыть админку'}</button>
-    </form>}
-  </div></div>
-}
-function PlayerModal({player,onClose,onSave}:{player?:any;onClose:()=>void;onSave:(x:any,y?:string,z?:boolean)=>Promise<void>}){const[p,setP]=useState({...player});const[n,setN]=useState('');const[pos,setPos]=useState('');const[gk,setGk]=useState(false);const isEdit=!!player;return <div className="modal-backdrop"><div className="modal-card"><button className="modal-x" onClick={onClose}><X/></button><div className="eyebrow">ИГРОК</div><h2>{isEdit?'Редактирование игрока':'Новый игрок'}</h2>{isEdit?<><label>Имя<input value={p.name||''} onChange={e=>setP({...p,name:e.target.value})}/></label><label>Позиция<input value={p.position||''} onChange={e=>setP({...p,position:e.target.value})}/></label><label className="check"><input type="checkbox" checked={!!p.is_goalkeeper} onChange={e=>setP({...p,is_goalkeeper:e.target.checked})}/> Вратарь</label><button className="primary-btn full" onClick={()=>onSave(p)}>Сохранить</button></>:<><label>Имя<input value={n} onChange={e=>setN(e.target.value)} placeholder="Иван Иванов"/></label><label>Позиция<input value={pos} onChange={e=>setPos(e.target.value)} placeholder="Защитник"/></label><label className="check"><input type="checkbox" checked={gk} onChange={e=>setGk(e.target.checked)}/> Вратарь</label><button className="primary-btn full" onClick={()=>onSave(n,pos,gk)}>Добавить</button></>}</div></div>}
