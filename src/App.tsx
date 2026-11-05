@@ -509,7 +509,8 @@ export default function App(){
   const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);};
   const addPlayer=async(name:string,position:string='',gk:boolean=false)=>{const w=getEngine(); const r=await w?.sb?.from('players').insert({name,position:position||null,is_goalkeeper:gk}).select().single(); if(r?.error)throw r.error; await refresh();setNewPlayerOpen(false);};
   const updatePlayer=async(p:any)=>{const w=getEngine();const r=await w?.sb?.from('players').update({name:p.name,position:p.position||null,is_goalkeeper:!!p.is_goalkeeper}).eq('id',p.id).select().single();if(r?.error)throw r.error;await refresh();setEditingPlayer(null);};
-  const deletePlayer=async(id:number)=>{    if(!confirm('Удалить игрока и всю его статистику, в том числе по отдельным матчам?'))return;
+  const deletePlayer=async(id:number)=>{
+    if(!confirm('Удалить игрока и всю его статистику, в том числе по отдельным матчам?'))return;
     const w=getEngine();if(!w?.sb){alert('Нет подключения к базе данных.');return;}
     try{
       const m=await w.sb.from('game_player_stats').delete().eq('player_id',id);if(m.error)throw m.error;
@@ -1008,7 +1009,8 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       }).map(g=>g.id);
       let clearChangedGameStats=false;
       if(!dayStatsChanged&&matchRowsBefore.length&&changedTeamGameIds.length){
-        const ok=window.confirm('Ты меняешь состав команд в уже заполненных матчах. Поматчевая статистика только этих игр будет удалена, чтобы не привязать голы и сейвы к неправильной команде. После сохранения её нужно будет внести заново. Продолжить?');        if(!ok){setSaving(false);return;}
+        const ok=window.confirm('Ты меняешь состав команд в уже заполненных матчах. Поматчевая статистика только этих игр будет удалена, чтобы не привязать голы и сейвы к неправильной команде. После сохранения её нужно будет внести заново. Продолжить?');
+        if(!ok){setSaving(false);return;}
         clearChangedGameStats=true;
       }
       let r:any;
