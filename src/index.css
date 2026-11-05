@@ -830,3 +830,19 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
  .hero-public .hero-tagline{max-width:100%;margin-top:18px;padding:8px 9px;font-size:12px;line-height:1.45}
 }
 @media(prefers-reduced-motion:reduce){.hero-public .hero-main-title::after{animation:none!important}}
+
+
+/* HERO gold shimmer — restore a restrained moving light across the main word */
+.hero-public .hero-main-title span:last-child{
+  background-image:linear-gradient(112deg,#d7bd75 0%,#f1ead7 24%,#fffdf3 42%,#ffffff 50%,#f1ead7 58%,#d7bd75 82%,#f1ead7 100%);
+  background-size:230% 100%;
+  background-position:100% 50%;
+  animation:heroGoldShimmer 6s ease-in-out infinite;
+}
+@keyframes heroGoldShimmer{
+  0%,12%{background-position:100% 50%}
+  58%,100%{background-position:0% 50%}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-public .hero-main-title span:last-child{animation:none;background-position:50% 50%}
+}
