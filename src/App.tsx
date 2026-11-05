@@ -1036,6 +1036,7 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
       const originalGames=games.filter(g=>String(g.game_day_id)===String(dayId));
       const originalTeams=teams.filter(t=>String(t.game_day_id)===String(dayId));
       const removedTeamIds=originalTeams.filter(t=>!teamDraft.some(x=>String(x.id)===String(t.id))).map(t=>t.id);
+      let r:any;
       const insertedTeams:any[]=[];
       for(let i=0;i<teamDraft.length;i++){
         const t=teamDraft[i];
@@ -1059,7 +1060,6 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
         if(!ok){setSaving(false);return;}
         clearChangedGameStats=true;
       }
-      let r:any;
       r=await engine.sb.from('game_days').update({game_date:date,game_time:time||null,place:place||null}).eq('id',dayId);if(r.error)throw r.error;
       // Update retained games and create new games first. Existing IDs are kept so per-match stats remain linked.
       for(let i=0;i<savedGameDraft.length;i++){
