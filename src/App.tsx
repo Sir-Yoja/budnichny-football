@@ -1238,7 +1238,7 @@ function LoyaltyProgress({totalDays}:{totalDays:number}){
   const progress=active?Math.min(days/150,1)*100:Math.min(days/10,1)*100;
   const gold='#e4b24f';
   const muted='#526574';
-  return <div style={{display:'flex',alignItems:'center',gap:5,padding:0,borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0,overflow:'hidden'}}>
+  return <div style={{display:'flex',alignItems:'center',gap:5,padding:0,borderRadius:16,background:'linear-gradient(115deg,rgba(10,20,29,.96),rgba(10,20,29,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0,overflow:'hidden'}}>
     <div style={{position:'relative',flex:'0 0 104px',width:104,alignSelf:'stretch',display:'flex',alignItems:'flex-end',justifyContent:'center',overflow:'hidden'}}>
       <img src={active?activeWizardImage:normalWizardImage} alt="Волшебник бафа" style={{width:104,height:'100%',minHeight:82,objectFit:'contain',objectPosition:'center bottom',flex:'0 0 104px',alignSelf:'stretch',margin:0,transform:'none',filter:active?'drop-shadow(0 0 9px rgba(221,169,70,.24))':'saturate(.82)'}}/>
       {active&&<span style={{position:'absolute',left:'50%',bottom:4,transform:'translateX(-50%)',whiteSpace:'nowrap',padding:'1px 4px',borderRadius:4,background:'rgba(35,25,10,.94)',border:'1px solid rgba(235,185,82,.8)',boxShadow:'0 0 7px rgba(222,169,61,.14)',color:'#f2cc75',fontWeight:800,fontSize:8,lineHeight:1.1}}>БАФ ВКЛ.</span>}
@@ -1255,7 +1255,7 @@ function LoyaltyProgress({totalDays}:{totalDays:number}){
           const target=value===next;
           const color=complete||target?gold:muted;
           return <div key={value} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,minWidth:0}}>
-            <span style={{width:'clamp(10px,1.5vw,15px)',height:'clamp(10px,1.5vw,15px)',boxSizing:'border-box',borderRadius:'50%',border:complete?'2px solid #f4cf7a':target?'2px solid #f1bd52':'2px solid #536879',background:complete?'radial-gradient(circle,#f7d98c 0 28%,#9b6a23 34% 100%)':'transparent',boxShadow:complete||target?'0 0 9px rgba(226,177,77,.48)':'none',display:'grid',placeItems:'center',color:'#241a09',fontSize:10,fontWeight:900}}>{complete?'✓':''}</span>
+            <span style={{width:'clamp(10px,1.5vw,15px)',height:'clamp(10px,1.5vw,15px)',boxSizing:'border-box',borderRadius:'50%',border:complete?'2px solid #f4cf7a':target?'2px solid #f1bd52':'2px solid #536879',background:complete?'radial-gradient(circle,#f7d98c 0 28%,#9b6a23 34% 100%)':'transparent',boxShadow:complete||target?'0 0 9px rgba(226,177,77,.48)':'none',display:'grid',placeItems:'center',color:'#241a09',fontSize:10,fontWeight:900}}>{''}</span>
             <span style={{fontSize:'clamp(7px,.85vw,10px)',lineHeight:1,color, fontWeight:complete||target?800:500,whiteSpace:'nowrap'}}>{value}</span>
           </div>;
         })}
