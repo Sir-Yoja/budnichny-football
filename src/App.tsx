@@ -21,6 +21,7 @@ type Engine = Window & {
 const fmtDate=(v:string)=>{ if(!v)return '—'; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d); };
 const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(d).toUpperCase(); };
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const isOwnerPlayer=(player:any)=>String(player?.name||'').trim().toLocaleLowerCase('ru-RU')==='сергеев сергей';
 const getAttendanceEffects=(entries:any[],days:any[],games:any[],today=localDateKey())=>{
   const ids=new Set<string>();
   entries.forEach(entry=>{
@@ -541,7 +542,7 @@ export default function App(){
     const effects=getAttendanceEffects(entries,days,games);
     const baseRating=Number(totals?.rating);
     const base=Number.isFinite(baseRating)?baseRating:5;
-    const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays,baseRating:base,loyaltyBonus:effects.loyaltyBonus,rating:Number((base+effects.loyaltyBonus).toFixed(2))};
+    const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays,baseRating:base,loyaltyBonus:effects.loyaltyBonus,rating:Number((isOwnerPlayer(p)?Math.max(7,base+effects.loyaltyBonus):base+effects.loyaltyBonus).toFixed(2))};
     return {p,s};
   }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,games,teams,days,ready]);
 
@@ -1277,7 +1278,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
     const rawRating=Number(getEngine()?.dayRatingForEntry?.(x)); const rating=Number.isFinite(rawRating)?rawRating:(player.is_goalkeeper?5.5:5);
     return {x,d,t,r,rating};
   }).sort((a,b)=>(b.d?.game_date||'').localeCompare(a.d?.game_date||''));
-  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(dayPlayers.filter(x=>String(x.player_id)===String(player.id)),days,games); const overall=Number((baseOverall+effects.loyaltyBonus).toFixed(2));
+  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(dayPlayers.filter(x=>String(x.player_id)===String(player.id)),days,games); const overall=Number((isOwnerPlayer(player)?Math.max(7,baseOverall+effects.loyaltyBonus):baseOverall+effects.loyaltyBonus).toFixed(2));
   return <div className="modal-backdrop profile-backdrop">
     <div className="modal-card profile-card">
       <button className="modal-x" onClick={onClose} aria-label="Закрыть"><X/></button>
