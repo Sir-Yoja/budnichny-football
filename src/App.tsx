@@ -24,7 +24,7 @@ type Engine = Window & {
 const fmtDate=(v:string)=>{ if(!v)return '—'; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d); };
 const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(d).toUpperCase(); };
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
-const isOwnerPlayer=(player:any)=>String(player?.name||'').trim().toLocaleLowerCase('ru-RU')==='сергеев сергей';
+const isOwnerPlayer=(player:any)=>String(player?.id)==='7'||['сергеев сергей','сергей сергеев'].includes(String(player?.name||'').trim().toLocaleLowerCase('ru-RU'));
 const getAttendanceEffects=(entries:any[],days:any[],games:any[],today=localDateKey())=>{
   const ids=new Set<string>();
   entries.forEach(entry=>{
