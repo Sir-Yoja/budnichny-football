@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon, Zap } from 'lucide-react';
 import { legacyHtml } from './legacyHtml';
+import wizardImage from './bf-loyalty-wizard.svg';
 
 type Tab = 'home' | 'rating' | 'admin' | 'account';
 type AdminSection = 'overview' | 'players' | 'days' | 'accounts' | 'moderation';
@@ -1236,7 +1237,7 @@ function LoyaltyProgress({totalDays}:{totalDays:number}){
   const gold='#e4b24f';
   const muted='#526574';
   return <div style={{display:'flex',alignItems:'center',gap:14,padding:'13px 15px',borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0}}>
-    <img src="/bf-loyalty-wizard.svg" alt="Волшебник бафа" style={{width:76,height:96,objectFit:'contain',flex:'0 0 76px',alignSelf:'flex-end',filter:active?'drop-shadow(0 0 8px rgba(221,169,70,.20))':'saturate(.65)'}}/>
+    <img src={wizardImage} alt="Волшебник бафа" style={{width:76,height:96,objectFit:'contain',flex:'0 0 76px',alignSelf:'flex-end',filter:active?'drop-shadow(0 0 8px rgba(221,169,70,.20))':'saturate(.65)'}}/>
     <div style={{flex:1,minWidth:0}}>
       {active&&<div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'6px 13px',marginBottom:10,borderRadius:10,background:'linear-gradient(110deg,rgba(109,73,19,.40),rgba(44,31,13,.72))',border:'1px solid rgba(235,185,82,.85)',boxShadow:'0 0 15px rgba(222,169,61,.18)',color:'#f2cc75',fontWeight:800,fontSize:16,letterSpacing:'.02em'}}><span style={{fontSize:19}}>✦</span>Баф включён</div>}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:active?12:9}}>
