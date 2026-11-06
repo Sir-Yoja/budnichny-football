@@ -1238,15 +1238,15 @@ function LoyaltyProgress({totalDays}:{totalDays:number}){
   const progress=active?Math.min(days/150,1)*100:Math.min(days/10,1)*100;
   const gold='#e4b24f';
   const muted='#526574';
-  return <div style={{display:'flex',alignItems:'center',gap:5,padding:'0 8px 0 0',borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0}}>
+  return <div style={{display:'flex',alignItems:'center',gap:5,padding:0,borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0}}>
     <img src={active?activeWizardImage:normalWizardImage} alt="Волшебник бафа" style={{width:104,height:'100%',minHeight:82,objectFit:'contain',flex:'0 0 104px',alignSelf:'stretch',margin:0,filter:active?'drop-shadow(0 0 9px rgba(221,169,70,.24))':'saturate(.82)'}}/>
-    <div style={{flex:1,minWidth:0}}>
+    <div style={{flex:1,minWidth:0,padding:'8px 8px 8px 0'}}>
       {active&&<div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'3px 7px',marginBottom:5,borderRadius:7,background:'linear-gradient(110deg,rgba(109,73,19,.40),rgba(44,31,13,.72))',border:'1px solid rgba(235,185,82,.85)',boxShadow:'0 0 15px rgba(222,169,61,.18)',color:'#f2cc75',fontWeight:800,fontSize:12,letterSpacing:'.01em'}}><span style={{fontSize:14}}>✦</span>Баф включён</div>}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:active?6:5}}>
         <strong style={{fontSize:12,color:'#d8e0e6'}}>Игровые дни</strong>
-        {!active&&<strong style={{fontSize:14,color:'#c2d1dc',whiteSpace:'nowrap'}}><span style={{color:'#e0b45d'}}>{days}</span> из 10</strong>}
+        <strong style={{fontSize:14,color:'#c2d1dc',whiteSpace:'nowrap'}}><span style={{color:active?'#e0b45d':'#c2d1dc'}}>{days}</span> из {active?150:10}</strong>
       </div>
-      {!active&&<div style={{height:5,borderRadius:99,background:'rgba(91,116,133,.28)',overflow:'hidden',marginBottom:7}}><div style={{height:'100%',width:progress+'%',borderRadius:99,background:'linear-gradient(90deg,#8298a8,#c0ced7)',transition:'width .3s'}}/></div>}
+      <div style={{height:5,borderRadius:99,background:'rgba(91,116,133,.28)',overflow:'hidden',marginBottom:7}}><div style={{height:'100%',width:progress+'%',borderRadius:99,background:active?'linear-gradient(90deg,#c18b2f,#f1cb72)':'linear-gradient(90deg,#8298a8,#c0ced7)',transition:'width .3s'}}/></div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(15,minmax(0,1fr))',gap:3,alignItems:'start',minWidth:0}}>
         {Array.from({length:15},(_,i)=>(i+1)*10).map(value=>{
           const complete=active&&value<=reached;
