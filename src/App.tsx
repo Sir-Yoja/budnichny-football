@@ -1238,23 +1238,23 @@ function LoyaltyProgress({totalDays}:{totalDays:number}){
   const progress=active?Math.min(days/150,1)*100:Math.min(days/10,1)*100;
   const gold='#e4b24f';
   const muted='#526574';
-  return <div style={{display:'flex',alignItems:'center',gap:14,padding:'13px 15px',borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0}}>
-    <img src={active?activeWizardImage:normalWizardImage} alt="Волшебник бафа" style={{width:150,height:150,objectFit:'contain',flex:'0 0 150px',alignSelf:'flex-end',filter:active?'drop-shadow(0 0 9px rgba(221,169,70,.24))':'saturate(.82)'}}/>
+  return <div style={{display:'flex',alignItems:'center',gap:7,padding:'7px 8px',borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0}}>
+    <img src={active?activeWizardImage:normalWizardImage} alt="Волшебник бафа" style={{width:76,height:76,objectFit:'contain',flex:'0 0 76px',alignSelf:'flex-end',filter:active?'drop-shadow(0 0 9px rgba(221,169,70,.24))':'saturate(.82)'}}/>
     <div style={{flex:1,minWidth:0}}>
-      {active&&<div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'6px 13px',marginBottom:10,borderRadius:10,background:'linear-gradient(110deg,rgba(109,73,19,.40),rgba(44,31,13,.72))',border:'1px solid rgba(235,185,82,.85)',boxShadow:'0 0 15px rgba(222,169,61,.18)',color:'#f2cc75',fontWeight:800,fontSize:16,letterSpacing:'.02em'}}><span style={{fontSize:19}}>✦</span>Баф включён</div>}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:active?12:9}}>
-        <strong style={{fontSize:15,color:'#d8e0e6'}}>Игровые дни</strong>
-        {!active&&<strong style={{fontSize:18,color:'#c2d1dc',whiteSpace:'nowrap'}}><span style={{color:'#e0b45d'}}>{days}</span> из 10</strong>}
+      {active&&<div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'3px 7px',marginBottom:5,borderRadius:7,background:'linear-gradient(110deg,rgba(109,73,19,.40),rgba(44,31,13,.72))',border:'1px solid rgba(235,185,82,.85)',boxShadow:'0 0 15px rgba(222,169,61,.18)',color:'#f2cc75',fontWeight:800,fontSize:12,letterSpacing:'.01em'}}><span style={{fontSize:14}}>✦</span>Баф включён</div>}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:active?6:5}}>
+        <strong style={{fontSize:12,color:'#d8e0e6'}}>Игровые дни</strong>
+        {!active&&<strong style={{fontSize:14,color:'#c2d1dc',whiteSpace:'nowrap'}}><span style={{color:'#e0b45d'}}>{days}</span> из 10</strong>}
       </div>
-      {!active&&<div style={{height:8,borderRadius:99,background:'rgba(91,116,133,.28)',overflow:'hidden',marginBottom:13}}><div style={{height:'100%',width:progress+'%',borderRadius:99,background:'linear-gradient(90deg,#8298a8,#c0ced7)',transition:'width .3s'}}/></div>}
+      {!active&&<div style={{height:5,borderRadius:99,background:'rgba(91,116,133,.28)',overflow:'hidden',marginBottom:7}}><div style={{height:'100%',width:progress+'%',borderRadius:99,background:'linear-gradient(90deg,#8298a8,#c0ced7)',transition:'width .3s'}}/></div>}
       <div style={{display:'grid',gridTemplateColumns:'repeat(15,minmax(0,1fr))',gap:3,alignItems:'start',minWidth:0}}>
         {Array.from({length:15},(_,i)=>(i+1)*10).map(value=>{
           const complete=active&&value<=reached;
           const target=value===next;
           const color=complete||target?gold:muted;
-          return <div key={value} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,minWidth:0}}>
-            <span style={{width:'clamp(12px,2.2vw,21px)',height:'clamp(12px,2.2vw,21px)',boxSizing:'border-box',borderRadius:'50%',border:complete?'2px solid #f4cf7a':target?'2px solid #f1bd52':'2px solid #536879',background:complete?'radial-gradient(circle,#f7d98c 0 28%,#9b6a23 34% 100%)':'transparent',boxShadow:complete||target?'0 0 9px rgba(226,177,77,.48)':'none',display:'grid',placeItems:'center',color:'#241a09',fontSize:10,fontWeight:900}}>{complete?'✓':''}</span>
-            <span style={{fontSize:'clamp(8px,1.05vw,12px)',lineHeight:1,color, fontWeight:complete||target?800:500,whiteSpace:'nowrap'}}>{value}</span>
+          return <div key={value} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,minWidth:0}}>
+            <span style={{width:'clamp(10px,1.5vw,15px)',height:'clamp(10px,1.5vw,15px)',boxSizing:'border-box',borderRadius:'50%',border:complete?'2px solid #f4cf7a':target?'2px solid #f1bd52':'2px solid #536879',background:complete?'radial-gradient(circle,#f7d98c 0 28%,#9b6a23 34% 100%)':'transparent',boxShadow:complete||target?'0 0 9px rgba(226,177,77,.48)':'none',display:'grid',placeItems:'center',color:'#241a09',fontSize:10,fontWeight:900}}>{complete?'✓':''}</span>
+            <span style={{fontSize:'clamp(7px,.85vw,10px)',lineHeight:1,color, fontWeight:complete||target?800:500,whiteSpace:'nowrap'}}>{value}</span>
           </div>;
         })}
       </div>
