@@ -668,7 +668,7 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
   const [p,r,s]=await Promise.all([
    engine.sb.from('user_profiles').select('user_id,role,linked_player_id').eq('user_id',session.user.id).maybeSingle(),
    engine.sb.from('player_link_requests').select('id,player_id,status,note,review_note,created_at,reviewed_at').eq('user_id',session.user.id).order('created_at',{ascending:false}).limit(10),
-   engine.sb.from('game_player_stats').select('id,game_id,game_day_id,player_id,status,moderation_note,reported_score_a,reported_score_b,player_comment,goals,assists,own_goals,saves,conceded,goalkeeper,created_at').eq('submitted_by',session.user.id).order('created_at',{ascending:false}).limit(30)
+   engine.sb.from('game_player_stat_submissions').select('id,game_id,game_day_id,player_id,status,moderation_note,reported_score_a,reported_score_b,player_comment,goals,assists,own_goals,saves,conceded,goalkeeper,created_at').eq('submitted_by',session.user.id).order('created_at',{ascending:false}).limit(30)
   ]);
   if(p.error)throw p.error;if(r.error)throw r.error;if(s.error)throw s.error;setProfile(p.data);setRequests(r.data||[]);setMyStats(s.data||[]);
  };
@@ -688,15 +688,8 @@ function AccountPage({session,adminVerified,players,days,games,teams,dayPlayers,
   for(const [k,v] of Object.entries(statDraft)){if(k!=='goalkeeper'&&(!Number.isSafeInteger(Number(v))||Number(v)<0)){setError('Все числовые показатели должны быть целыми и неотрицательными.');return;}}
   setBusy(true);setError('');setMessage('');
   try{
-   const existing=await engine.sb.from('game_player_stats').select('id,status').eq('game_id',game.id).eq('player_id',profile.linked_player_id).maybeSingle();
-   if(existing.error)throw existing.error;
    const payload={game_id:game.id,game_day_id:game.game_day_id,player_id:profile.linked_player_id,team_id:roster.team_id,goals:Number(statDraft.goals),assists:Number(statDraft.assists),own_goals:Number(statDraft.own_goals),saves:Number(statDraft.saves),conceded:Number(statDraft.conceded),goalkeeper:!!statDraft.goalkeeper,reported_score_a:Number(reportedScoreA),reported_score_b:Number(reportedScoreB),player_comment:playerComment.trim()||null};
-   if(existing.data?.status==='needs_correction'){
-    const saved=await engine.sb.rpc('resubmit_match_stat',{p_stat_id:existing.data.id,p_payload:payload});if(saved.error)throw saved.error;
-   }else{
-    if(existing.data)throw new Error('Статистика уже отправлена или сохранена. Если администратор вернул её на исправление, можно отправить исправленную версию.');
-    const saved=await engine.sb.from('game_player_stats').insert({...payload,status:'pending',submitted_by:session.user.id});if(saved.error)throw saved.error;
-   }
+   const saved=await engine.sb.rpc('submit_match_stat',{p_payload:payload});if(saved.error)throw saved.error;
    setMessage('Статистика и счёт отправлены на проверку. В рейтинг они попадут после подтверждения администратором.');setSelectedGame('');setReportedScoreA('');setReportedScoreB('');setPlayerComment('');setStatDraft({goals:0,assists:0,own_goals:0,saves:0,conceded:0,goalkeeper:false});await load();
   }catch(e:any){setError(e?.message||'Не удалось отправить статистику.');}finally{setBusy(false);}
  };
@@ -813,7 +806,7 @@ function AccountRequestsAdmin({engine,players,onRefresh}:{engine:any;players:any
 function MatchStatsModeration({engine,players,days,games,teams,dayPlayers,onRefresh}:{engine:any;players:any[];days:any[];games:any[];teams:any[];dayPlayers:any[];onRefresh:()=>Promise<void>}){
  const [rows,setRows]=useState<any[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [dayFilter,setDayFilter]=useState(''),[gameFilter,setGameFilter]=useState(''),[teamFilter,setTeamFilter]=useState(''),[statusFilter,setStatusFilter]=useState('pending');
- const load=async()=>{if(!engine?.sb)throw new Error('Нет подключения к базе данных.');const r=await engine.sb.from('game_player_stats').select('*').order('created_at',{ascending:false}).limit(1000);if(r.error)throw r.error;setRows(r.data||[]);};
+ const load=async()=>{if(!engine?.sb)throw new Error('Нет подключения к базе данных.');const r=await engine.sb.from('game_player_stat_submissions').select('*').order('created_at',{ascending:false}).limit(1000);if(r.error)throw r.error;setRows(r.data||[]);};
  useEffect(()=>{load().catch(e=>setError(e.message||'Не удалось загрузить очередь'))},[engine]);
  const review=async(id:number,decision:string)=>{const note=decision==='approved'?null:(prompt(decision==='needs_correction'?'Что игроку нужно исправить?':'Причина отклонения (необязательно)')||null);setBusy(true);setError('');setMessage('');try{const r=await engine.sb.rpc('review_match_stat',{p_stat_id:id,p_decision:decision,p_note:note});if(r.error)throw r.error;const stat=rows.find(x=>Number(x.id)===Number(id)),playerName=players.find(x=>String(x.id)===String(stat?.player_id))?.name||'Игрок #'+stat?.player_id,decisionLabel=decision==='approved'?'подтвердил статистику':decision==='rejected'?'отклонил статистику':'вернул статистику на исправление';await writeAdminHistory(engine,'moderation','stat_'+decision,'Ты '+decisionLabel+': '+playerName+'.',playerName,{stat_id:id,game_id:stat?.game_id,game_day_id:stat?.game_day_id,note});await load();await onRefresh();setMessage('Решение сохранено.');}catch(e:any){setError(e?.message||'Не удалось обработать запись.');}finally{setBusy(false);}};
  const saveConsensusScore=async(game:any,score:any)=>{if(!game||!score)return;if(!window.confirm(`Зафиксировать официальный счёт матча ${score.label}?`))return;setBusy(true);setError('');setMessage('');try{const r=await engine.sb.from('games').update({score_a:score.a,score_b:score.b}).eq('id',game.id);if(r.error)throw r.error;const ta=teams.find(x=>String(x.id)===String(game.team_a_id)),tb=teams.find(x=>String(x.id)===String(game.team_b_id)),matchName=(ta?.name||'Команда A')+' — '+(tb?.name||'Команда B');await writeAdminHistory(engine,'moderation','official_score_updated','Ты установил официальный счёт '+score.label+': '+matchName+'.',matchName,{game_id:game.id,score_a:score.a,score_b:score.b});await onRefresh();setMessage('Официальный счёт матча обновлён. Заявки игроков при этом не изменены.');}catch(e:any){setError(e?.message||'Не удалось обновить счёт матча.');}finally{setBusy(false);}};
