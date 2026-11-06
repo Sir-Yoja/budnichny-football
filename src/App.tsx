@@ -623,7 +623,7 @@ function Rating({rows,icons,playerBadges,sort,setSort,onPlayer}:{rows:any[];icon
     </div>
     {list.map((x,i)=><button className="rating-row rating-row-11" key={x.p.id} onClick={()=>onPlayer(x.p.id)}>
       <span className="rank">{showRank?i+1:'—'}</span>
-      <span className="player-name"><strong><span className="player-name-text">{x.p.name}</span>{(()=>{const badge:any=badgesByPlayer.get(String(x.p.id));return <span className="player-account-badges">{badge?.is_admin&&<span className="player-account-alpha-omega" title="Администратор лиги — Альфа и Омега" aria-label="Администратор лиги — Альфа и Омега">ΑΩ</span>}{badge?.telegram_connected&&<span className="player-account-telegram" title="Аккаунт Telegram привязан" aria-label="Аккаунт Telegram привязан"><Zap size={14} strokeWidth={3}/></span>}</span>})()}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small>{x.s.loyaltyBonus>0&&<small style={{color:'#18834a'}}>Баф за лояльность · +{x.s.loyaltyBonus.toFixed(2)}</small>}</span>
+      <span className="player-name"><strong><span className="player-name-text">{x.p.name}</span>{(()=>{const badge:any=badgesByPlayer.get(String(x.p.id));return <span className="player-account-badges">{badge?.is_admin&&<span className="player-account-alpha-omega" title="Администратор лиги — Альфа и Омега" aria-label="Администратор лиги — Альфа и Омега">ΑΩ</span>}{badge?.telegram_connected&&<span className="player-account-telegram" title="Аккаунт Telegram привязан" aria-label="Аккаунт Telegram привязан"><Zap size={14} strokeWidth={3}/></span>}</span>})()}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small>{x.s.loyaltyBonus>0&&<small style={{display:'inline-flex',alignItems:'center',gap:5,marginTop:5,padding:'4px 9px',borderRadius:999,background:'rgba(222,164,62,.13)',border:'1px solid rgba(222,164,62,.38)',color:'#e6b85c',fontWeight:700}}>✦ Баф включён</small>}</span>
       <span>{x.p.position||'Игрок'}</span>
       <span>{x.s.days}</span><span>{x.s.goals}</span><span>{x.s.assists}</span><strong>{x.s.gp}</strong>
       <span>{x.s.saves}</span><span>{x.s.conceded}</span><span>{x.s.ownGoals}</span><b className="rating-value">{x.s.days?Number(x.s.rating).toFixed(2):'—'}</b>
@@ -1226,6 +1226,38 @@ function EditDayModal({dayId,players,days,teams,games,dayPlayers,icons,engine,on
   </div>;
 }
 
+function LoyaltyProgress({totalDays}:{totalDays:number}){
+  const days=Math.max(0,Math.floor(Number(totalDays)||0));
+  const active=days>=10;
+  const reached=Math.min(Math.floor(days/10)*10,150);
+  const next=active?(reached<150?reached+10:null):10;
+  const progress=active?Math.min(days/150,1)*100:Math.min(days/10,1)*100;
+  const gold='#e4b24f';
+  const muted='#526574';
+  return <div style={{display:'flex',alignItems:'center',gap:14,padding:'13px 15px',borderRadius:16,background:active?'linear-gradient(115deg,rgba(49,34,12,.72),rgba(10,20,29,.96) 46%)':'linear-gradient(115deg,rgba(24,39,51,.72),rgba(9,19,28,.96) 46%)',border:active?'1px solid rgba(224,173,70,.68)':'1px solid rgba(104,132,151,.42)',boxShadow:active?'0 0 22px rgba(218,163,54,.10),inset 0 0 18px rgba(218,163,54,.05)':'inset 0 0 18px rgba(104,132,151,.04)',minWidth:0}}>
+    <img src="/bf-loyalty-wizard.svg" alt="Волшебник бафа" style={{width:76,height:96,objectFit:'contain',flex:'0 0 76px',alignSelf:'flex-end',filter:active?'drop-shadow(0 0 8px rgba(221,169,70,.20))':'saturate(.65)'}}/>
+    <div style={{flex:1,minWidth:0}}>
+      {active&&<div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'6px 13px',marginBottom:10,borderRadius:10,background:'linear-gradient(110deg,rgba(109,73,19,.40),rgba(44,31,13,.72))',border:'1px solid rgba(235,185,82,.85)',boxShadow:'0 0 15px rgba(222,169,61,.18)',color:'#f2cc75',fontWeight:800,fontSize:16,letterSpacing:'.02em'}}><span style={{fontSize:19}}>✦</span>Баф включён</div>}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:active?12:9}}>
+        <strong style={{fontSize:15,color:'#d8e0e6'}}>Игровые дни</strong>
+        {!active&&<strong style={{fontSize:18,color:'#c2d1dc',whiteSpace:'nowrap'}}><span style={{color:'#e0b45d'}}>{days}</span> из 10</strong>}
+      </div>
+      {!active&&<div style={{height:8,borderRadius:99,background:'rgba(91,116,133,.28)',overflow:'hidden',marginBottom:13}}><div style={{height:'100%',width:progress+'%',borderRadius:99,background:'linear-gradient(90deg,#8298a8,#c0ced7)',transition:'width .3s'}}/></div>}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(15,minmax(0,1fr))',gap:3,alignItems:'start',minWidth:0}}>
+        {Array.from({length:15},(_,i)=>(i+1)*10).map(value=>{
+          const complete=active&&value<=reached;
+          const target=value===next;
+          const color=complete||target?gold:muted;
+          return <div key={value} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:5,minWidth:0}}>
+            <span style={{width:'clamp(12px,2.2vw,21px)',height:'clamp(12px,2.2vw,21px)',boxSizing:'border-box',borderRadius:'50%',border:complete?'2px solid #f4cf7a':target?'2px solid #f1bd52':'2px solid #536879',background:complete?'radial-gradient(circle,#f7d98c 0 28%,#9b6a23 34% 100%)':'transparent',boxShadow:complete||target?'0 0 9px rgba(226,177,77,.48)':'none',display:'grid',placeItems:'center',color:'#241a09',fontSize:10,fontWeight:900}}>{complete?'✓':''}</span>
+            <span style={{fontSize:'clamp(8px,1.05vw,12px)',lineHeight:1,color, fontWeight:complete||target?800:500,whiteSpace:'nowrap'}}>{value}</span>
+          </div>;
+        })}
+      </div>
+    </div>
+  </div>;
+}
+
 function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,engine}:{player:any;days:any[];teams:any[];dayPlayers:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any}){
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>engine;
@@ -1251,7 +1283,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
       <button className="modal-x" onClick={onClose} aria-label="Закрыть"><X/></button>
       <div className="eyebrow">ПРОФИЛЬ ИГРОКА</div>
       <div className="profile-title-row"><div><h2>{player.name}</h2><p className="muted">{player.position||'Игрок'}{player.is_goalkeeper?' · Вратарь':''}</p></div><div className="profile-rating"><span>{icon('rating',38)}</span><small>Общий рейтинг</small><b>{overall.toFixed(2)}</b><em className={playedDays>=3?'profile-rating-status confirmed':'profile-rating-status preliminary'}>{playedDays>=3?'Подтверждённый рейтинг':`Предварительный · ещё ${3-playedDays} ${playedDays===2?'игровой день':'игровых дня'} до подтверждения`}</em></div></div>
-      {effects.loyaltyBonus>0&&<div style={{display:'flex',flexWrap:'wrap',gap:10,margin:'12px 0 18px'}}><div style={{padding:'9px 12px',borderRadius:10,background:'rgba(24,131,74,.10)',color:'#18834a',fontWeight:600}}>Баф за лояльность +{effects.loyaltyBonus.toFixed(2)}</div></div>}
+      <div style={{margin:'16px 0 22px'}}><LoyaltyProgress totalDays={effects.totalDays}/></div>
       <div className="profile-stat-grid">
         <div className="profile-stat">{icon('goal',30)}<small>Голы</small><b>{totals.goals}</b></div>
         <div className="profile-stat">{icon('pass',30)}<small>Пасы</small><b>{totals.assists}</b></div>
