@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon, Zap } from 'lucide-react';
 import { legacyHtml } from './legacyHtml';
-import activeWizardImage from './assets/wizard-active.jpg';
-import normalWizardImage from './assets/wizard-normal.jpg';
+import activeWizardImage from './assets/wizard-approved.webp';
+import normalWizardImage from './assets/wizard-approved.webp';
 
 
 type Tab = 'home' | 'rating' | 'admin' | 'account';
