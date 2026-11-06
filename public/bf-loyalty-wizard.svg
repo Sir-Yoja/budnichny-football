@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 300">
+<defs><linearGradient id="cloak" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#243746"/><stop offset="1" stop-color="#08131e"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe39a"/><stop offset="1" stop-color="#c98220"/></linearGradient></defs>
+<path d="M24 292Q28 222 74 184Q28 134 51 69Q65 24 130 8Q112 60 159 75Q210 90 216 151Q222 192 187 214Q238 244 246 292Z" fill="url(#cloak)" stroke="url(#gold)" stroke-width="7" stroke-linejoin="round"/>
+<path d="M54 125Q22 77 75 38Q109 12 159 27Q121 51 132 89Q95 78 54 125Z" fill="#172b3b" stroke="#d99736" stroke-width="6"/>
+<path d="M89 105Q105 75 148 83Q185 93 185 139Q181 174 151 184Q119 180 96 154Q80 132 89 105Z" fill="#d89a68" stroke="#6b3b27" stroke-width="5"/>
+<path d="M88 110Q111 81 157 92L178 117Q150 104 130 113Q110 120 91 132Z" fill="#18202a"/>
+<path d="M103 137Q119 127 132 137M151 136Q164 128 174 137" fill="none" stroke="#241b19" stroke-width="6" stroke-linecap="round"/>
+<path d="M135 142L128 160L143 160" fill="none" stroke="#75442f" stroke-width="5" stroke-linecap="round"/>
+<path d="M111 166Q130 178 151 165Q151 188 133 195Q113 188 111 166Z" fill="#f0e4c8"/>
+<path d="M91 160Q105 172 117 168Q128 184 145 174Q160 180 177 158Q174 202 147 229Q126 248 108 219Q91 197 91 160Z" fill="#e6e0cf" stroke="#8c8c82" stroke-width="4"/>
+<path d="M70 216Q104 193 118 222Q131 247 152 222Q174 196 199 220L228 292H34Z" fill="url(#cloak)" stroke="#c88b32" stroke-width="5"/>
+<path d="M70 216Q102 203 117 228M199 220Q170 204 151 230" fill="none" stroke="#f2bd59" stroke-width="5"/>
+<path d="M34 292Q43 258 64 241M228 292Q214 257 195 241" fill="none" stroke="#f0c36c" stroke-width="4"/>
+<path d="M76 117Q85 94 103 91M168 94Q187 102 189 123" fill="none" stroke="#d99b42" stroke-width="4" stroke-linecap="round"/>
+</svg>
