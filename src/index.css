@@ -937,3 +937,7 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
     padding-top:15px;
   }
 }
+
+
+/* Скрываем верхнюю навигацию, пока открыт игровой день */
+.topbar.game-open{display:none!important;}
