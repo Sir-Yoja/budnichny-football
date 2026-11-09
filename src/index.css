@@ -982,3 +982,31 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 @media(prefers-reduced-motion:reduce){
   .topbar{transition:none}
 }
+
+
+/* Компактная шапка раздела рейтинга */
+.rating-page .rating-intro{
+  margin:0 0 22px;
+  padding:8px 0 0;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+}
+.rating-page .rating-intro h2{
+  margin:0 0 9px;
+  font-size:clamp(28px,3vw,36px);
+  line-height:1.15;
+  letter-spacing:-.025em;
+}
+.rating-page .rating-intro p{
+  margin:0;
+  max-width:690px;
+  font-size:14px;
+  line-height:1.6;
+  color:#b9cbd5;
+}
+@media(max-width:600px){
+  .rating-page .rating-intro{margin-bottom:16px}
+  .rating-page .rating-intro h2{font-size:27px}
+  .rating-page .rating-intro p{font-size:13px}
+}
