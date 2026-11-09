@@ -72,17 +72,24 @@ export default function App(){
       setNavHiddenOnScroll(false);
       return;
     }
-    lastScrollY.current=window.scrollY;
-    const handleScroll=()=>{
-      const currentY=window.scrollY;
-      const delta=currentY-lastScrollY.current;
-      if(currentY<40)setNavHiddenOnScroll(false);
-      else if(delta>4)setNavHiddenOnScroll(true);
-      else if(delta< -4)setNavHiddenOnScroll(false);
-      lastScrollY.current=currentY;
+    let lastY=window.scrollY||document.documentElement.scrollTop||0;
+    const handleScroll=(event?:Event)=>{
+      const target=event?.target as HTMLElement|null;
+      const targetY=target && target!==document && typeof target.scrollTop==='number'
+        ? target.scrollTop
+        : (window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0);
+      const delta=targetY-lastY;
+      if(targetY<40)setNavHiddenOnScroll(false);
+      else if(delta>2)setNavHiddenOnScroll(true);
+      else if(delta< -2)setNavHiddenOnScroll(false);
+      lastY=targetY;
     };
     window.addEventListener('scroll',handleScroll,{passive:true});
-    return ()=>window.removeEventListener('scroll',handleScroll);
+    document.addEventListener('scroll',handleScroll,{passive:true,capture:true});
+    return ()=>{
+      window.removeEventListener('scroll',handleScroll);
+      document.removeEventListener('scroll',handleScroll,true);
+    };
   },[dayModal]);
 
   const getEngine=()=>frame.current?.contentWindow as Engine|null;
