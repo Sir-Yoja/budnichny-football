@@ -967,3 +967,18 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   .hero-public .hero-main-title span:last-child{font-size:clamp(62px,17vw,88px)!important}
   .hero-public .hero-tagline{font-size:13px!important}
 }
+
+
+/* Автоскрытие верхнего меню при прокрутке вниз */
+.topbar{
+  transition:transform .24s ease,opacity .2s ease;
+  will-change:transform;
+}
+.topbar.scroll-hidden{
+  transform:translateY(-110%);
+  opacity:0;
+  pointer-events:none;
+}
+@media(prefers-reduced-motion:reduce){
+  .topbar{transition:none}
+}
