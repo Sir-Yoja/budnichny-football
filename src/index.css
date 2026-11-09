@@ -1018,3 +1018,17 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   .rating-page .rating-intro h2{font-size:27px}
   .rating-page .rating-intro p{font-size:13px}
 }
+
+
+/* Переносим кнопку админки в правую часть верхней навигации */
+.topbar .nav{
+  width:100%;
+  align-items:center;
+}
+.topbar .nav button:last-child{
+  margin-left:auto;
+}
+@media(max-width:800px){
+  .topbar .nav{width:auto;align-items:stretch}
+  .topbar .nav button:last-child{margin-left:0}
+}
