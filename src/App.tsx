@@ -662,7 +662,7 @@ function Rating({rows,icons,playerBadges,sort,setSort,onPlayer}:{rows:any[];icon
     {!list.length&&<div className="rating-empty-state">В этой категории пока нет игроков.</div>}
   </div>;
   return <section className="page rating-page">
-    <div className="section-head"><div><div className="eyebrow">СТАТИСТИКА</div><h2>Рейтинг игроков</h2><p>В основном рейтинге участвуют игроки, сыгравшие минимум 3 разных игровых дня. После 1–2 дней рейтинг предварительный и не влияет на места в основном зачёте. Общий рейтинг — среднее рейтингов игровых дней; сейвы и пропущенные влияют только на профильных вратарей.</p></div></div>
+    <div className="section-head rating-intro"><div><h2>Рейтинг игроков</h2><p>В основной рейтинг попадают игроки после 3 игровых дней. До этого рейтинг предварительный.</p></div></div>
     <div className="rating-filters">{filters.map(([key,label,icon])=><button key={key} className={sort===key?'rating-filter active':'rating-filter'} onClick={()=>setSort(key)}><Icon name={icon} size={22}/><span>{label}</span></button>)}</div>
 
     <div className="rating-group-head"><div><h3>Подтверждённый рейтинг</h3><p>3 и более игровых дней · игроки ранжируются в основном зачёте</p></div><span className="rating-group-count">{confirmed.length} игроков</span></div>
