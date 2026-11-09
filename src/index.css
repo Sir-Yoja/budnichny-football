@@ -1015,7 +1015,7 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 }
 @media(max-width:600px){
   .rating-page .rating-intro{margin-bottom:16px;padding:8px 0 0}
-  .rating-page .rating-intro h2{font-size:27px}
+  .rating-page .rating-intro h2{font-size:54px!important}
   .rating-page .rating-intro p{font-size:13px}
 }
 
@@ -1036,6 +1036,7 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 
 /* Заголовок рейтинга — та же типографика и золотой объём, что у главного логотипа */
 .rating-page .rating-intro h2{
+  font-size:clamp(56px,6vw,72px)!important;
   font-family:'Cormorant Garamond',Georgia,serif!important;
   font-style:normal!important;
   font-weight:700!important;
