@@ -941,3 +941,7 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 
 /* Скрываем верхнюю навигацию, пока открыт игровой день */
 .topbar.game-open{display:none!important;}
+
+
+/* Убираем внешний контур главного баннера */
+.hero-public{border:0!important;box-shadow:none!important;}
