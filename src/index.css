@@ -1034,19 +1034,19 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 }
 
 
-/* Объёмный заголовок рейтинга в стилистике главного логотипа */
+/* Заголовок рейтинга — та же типографика и золотой объём, что у главного логотипа */
 .rating-page .rating-intro h2{
-  font-family:'Barlow Condensed',Impact,sans-serif;
-  font-style:italic;
-  font-weight:800;
-  letter-spacing:.005em;
-  color:#f3e6bf;
-  background:linear-gradient(180deg,#fffdf1 0%,#f3e6c1 38%,#d6b96d 78%,#a9853f 100%);
+  font-family:'Cormorant Garamond',Georgia,serif!important;
+  font-style:normal!important;
+  font-weight:700!important;
+  letter-spacing:.035em!important;
+  line-height:.98!important;
+  color:transparent!important;
+  background:linear-gradient(180deg,#fffdf3 0%,#f1ead7 54%,#d7bd75 100%);
   -webkit-background-clip:text;
   background-clip:text;
   -webkit-text-fill-color:transparent;
-  -webkit-text-stroke:.65px rgba(91,65,28,.8);
-  paint-order:stroke fill;
-  text-shadow:0 2px 0 rgba(94,65,27,.7),0 4px 0 rgba(24,27,30,.75),0 7px 13px rgba(0,0,0,.72),0 0 18px rgba(219,185,104,.18);
-  filter:drop-shadow(0 3px 5px rgba(0,0,0,.5));
+  -webkit-text-stroke:0!important;
+  text-shadow:none!important;
+  filter:drop-shadow(0 3px 0 rgba(12,23,29,.7)) drop-shadow(0 7px 12px rgba(0,0,0,.48));
 }
