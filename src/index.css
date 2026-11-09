@@ -987,12 +987,13 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 /* Заголовок рейтинга без отдельной плашки — вписываем в общий фон */
 .rating-page .rating-intro{
   width:min(820px,100%);
-  margin:0 0 22px;
+  margin:0 auto 22px;
   padding:8px 0 0;
   background:transparent!important;
   border:0!important;
   border-radius:0!important;
   box-shadow:none!important;
+  text-align:center;
   -webkit-backdrop-filter:none!important;
   backdrop-filter:none!important;
 }
@@ -1004,8 +1005,8 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   letter-spacing:-.025em;
   text-shadow:0 2px 12px rgba(0,0,0,.82),0 0 2px rgba(0,0,0,.9);
 }
-.rating-page .rating-intro p{
-  margin:0;
+ .rating-page .rating-intro p{
+  margin:0 auto;
   max-width:690px;
   color:#e0e9ee;
   font-size:14px;
