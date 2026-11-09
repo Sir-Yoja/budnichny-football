@@ -551,7 +551,7 @@ export default function App(){
 
   return <div className="app" style={legacyBackground ? {backgroundImage: legacyBackground} : undefined}>
     <iframe ref={frame} onLoad={onLoad} className={dayModal!==null ? "engine editor-visible" : "engine"} title="data-engine" srcDoc={legacyHtml}/>
-    <header className="topbar">
+    <header className={dayModal!==null ? "topbar game-open" : "topbar"}>
       <div className="brand" onClick={()=>{setTab('home');setMenu(false)}}><span className="brand-ball">⚽</span><div><b>БУДНИЧНЫЙ ФУТБОЛ</b><small>Панель лиги</small></div></div>
       <nav className={menu?'nav open':'nav'}>
         <button className={tab==='home'?'active':''} onClick={()=>{setTab('home');setMenu(false)}}>Игровые дни</button>
