@@ -286,6 +286,17 @@ export default function App(){
   const openEdit=(id:number)=>{ setPlayerProfile(null); setDayModal(null); setEditDayId(id); };
   const openProfile=(id:number)=>{ const p=players.find(x=>x.id===id); if(p) setPlayerProfile(p); };
   const closeLegacyModal=()=>{ getEngine()?.closeModal?.(); setDayModal(null); refresh(); };
+  useEffect(()=>{
+    if(dayModal===null)return;
+    const handleEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){
+        event.preventDefault();
+        closeLegacyModal();
+      }
+    };
+    window.addEventListener('keydown',handleEscape);
+    return()=>window.removeEventListener('keydown',handleEscape);
+  },[dayModal]);
   const closeEditModal=()=>{ setEditDayId(null); document.body.style.overflow=''; };
   const openAddGameDay=()=>{setNewDayOpen(true);};
 
