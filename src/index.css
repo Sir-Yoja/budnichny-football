@@ -945,3 +945,25 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 
 /* Убираем внешний контур главного баннера */
 .hero-public{border:0!important;box-shadow:none!important;}
+
+
+/* Главный баннер: увеличиваем типографику */
+.hero-public .hero-main-title span:first-child{
+  font-size:clamp(44px,6.1vw,80px)!important;
+}
+.hero-public .hero-main-title span:last-child{
+  font-size:clamp(98px,13.2vw,168px)!important;
+}
+.hero-public .hero-tagline{
+  font-size:clamp(16px,1.8vw,20px)!important;
+}
+@media(max-width:800px){
+  .hero-public .hero-main-title span:first-child{font-size:clamp(36px,8.8vw,58px)!important}
+  .hero-public .hero-main-title span:last-child{font-size:clamp(76px,16vw,116px)!important}
+  .hero-public .hero-tagline{font-size:15px!important}
+}
+@media(max-width:480px){
+  .hero-public .hero-main-title span:first-child{font-size:clamp(30px,8.8vw,42px)!important}
+  .hero-public .hero-main-title span:last-child{font-size:clamp(62px,17vw,88px)!important}
+  .hero-public .hero-tagline{font-size:13px!important}
+}
