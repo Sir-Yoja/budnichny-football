@@ -990,10 +990,9 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
   margin:0 0 22px;
   padding:17px 21px 18px;
   background:rgba(4,16,24,.88);
-  border:1px solid rgba(190,211,222,.13);
-  border-left:3px solid rgba(207,184,66,.72);
-  border-radius:12px;
-  box-shadow:0 8px 26px rgba(0,0,0,.22);
+  border:0!important;
+  border-radius:0;
+  box-shadow:none;
   -webkit-backdrop-filter:blur(8px);
   backdrop-filter:blur(8px);
 }
