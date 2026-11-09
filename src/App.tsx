@@ -64,6 +64,26 @@ export default function App(){
   const [icons,setIcons]=useState<Record<string,string>>({});
   const [ratingSort,setRatingSort]=useState('rating');
   const [quickEntryOpen,setQuickEntryOpen]=useState(false);
+  const [navHiddenOnScroll,setNavHiddenOnScroll]=useState(false);
+  const lastScrollY=useRef(0);
+
+  useEffect(()=>{
+    if(dayModal!==null){
+      setNavHiddenOnScroll(false);
+      return;
+    }
+    lastScrollY.current=window.scrollY;
+    const handleScroll=()=>{
+      const currentY=window.scrollY;
+      const delta=currentY-lastScrollY.current;
+      if(currentY<40)setNavHiddenOnScroll(false);
+      else if(delta>4)setNavHiddenOnScroll(true);
+      else if(delta< -4)setNavHiddenOnScroll(false);
+      lastScrollY.current=currentY;
+    };
+    window.addEventListener('scroll',handleScroll,{passive:true});
+    return ()=>window.removeEventListener('scroll',handleScroll);
+  },[dayModal]);
 
   const getEngine=()=>frame.current?.contentWindow as Engine|null;
   const refresh=useCallback(async()=>{
@@ -551,7 +571,7 @@ export default function App(){
 
   return <div className="app" style={legacyBackground ? {backgroundImage: legacyBackground} : undefined}>
     <iframe ref={frame} onLoad={onLoad} className={dayModal!==null ? "engine editor-visible" : "engine"} title="data-engine" srcDoc={legacyHtml}/>
-    <header className={dayModal!==null ? "topbar game-open" : "topbar"}>
+    <header className={dayModal!==null ? "topbar game-open" : navHiddenOnScroll ? "topbar scroll-hidden" : "topbar"}>
       <div className="brand" onClick={()=>{setTab('home');setMenu(false)}}><span className="brand-ball">⚽</span><div><b>БУДНИЧНЫЙ ФУТБОЛ</b><small>Панель лиги</small></div></div>
       <nav className={menu?'nav open':'nav'}>
         <button className={tab==='home'?'active':''} onClick={()=>{setTab('home');setMenu(false)}}>Игровые дни</button>
