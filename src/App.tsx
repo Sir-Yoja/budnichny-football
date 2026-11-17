@@ -43,7 +43,6 @@ const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=loca
  const absenceAnchor=lastAttendanceDate>=DEBUFF_START_DATE?lastAttendanceDate:DEBUFF_START_DATE;
  const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
  const candidateDebuff=dates.length>0&&absenceDays>=8?Number((Math.floor(absenceDays/8)*0.04).toFixed(2)):0;
- if(candidateDebuff>0)streakDays=0;
  return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),candidateDebuff};
 };
 const adminTeamName=(team:any)=>{const colors:Record<string,string>={'Пунктуальные':'Белые','Сообразительные':'Тёмные','Красивые':'Красные','Стильные':'Жёлтые'};const name=team?.name||'Команда';return colors[name]?`${name} (${colors[name]})`:name;};
