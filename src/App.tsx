@@ -25,51 +25,33 @@ const fmtDate=(v:string)=>{ if(!v)return '—'; const d=new Date(`${v}T00:00:00`
 const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(d).toUpperCase(); };
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const isOwnerPlayer=(player:any)=>String(player?.id)==='7'||['сергеев сергей','сергей сергеев'].includes(String(player?.name||'').trim().toLocaleLowerCase('ru-RU'));
-const DEBUFF_START_DATE='2026-11-17';
+const DEBUFF_START_DATE='2026-11-01';
 const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=localDateKey())=>{
-  // Посещением считается только одобренная статистика матча. Несколько матчей
-  // одного игрового дня дают одно посещение; состав без статистики не учитывается.
-  const dates=Array.from(new Set(approvedRows
-    .filter(row=>row?.status==='approved'&&row?.game_day_id!==null&&row?.game_day_id!==undefined)
-    .map(row=>{
-      const day=days.find((item:any)=>String(item.id)===String(row.game_day_id));
-      const date=String(day?.game_date||'').slice(0,10);
-      return date&&date<=today&&games.some((game:any)=>String(game.game_day_id)===String(row.game_day_id))?date:'';
-    })
-    .filter(Boolean))).sort();
-  const dayDistance=(from:string,to:string)=>Math.floor((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);
-  const previousDates=dates.filter(date=>date<DEBUFF_START_DATE);
-  const activeDates=dates.filter(date=>date>=DEBUFF_START_DATE);
-  // До запуска новой механики сохраняем уже заработанный бафф, но не считаем
-  // прежние пропуски дебаффом. Отсчёт отсутствия начинается с даты запуска.
-  let streakDays=previousDates.length;
-  let lastAttendanceDate=previousDates[previousDates.length-1]||'';
-  if(activeDates.length){
-    const firstDate=activeDates[0];
-    if(dayDistance(DEBUFF_START_DATE,firstDate)>=8)streakDays=0;
-    lastAttendanceDate='';
-    activeDates.forEach(date=>{
-      if(lastAttendanceDate&&dayDistance(lastAttendanceDate,date)>=8)streakDays=0;
-      streakDays+=1;
-      lastAttendanceDate=date;
-    });
-  }
-  const absenceAnchor=lastAttendanceDate>=DEBUFF_START_DATE?lastAttendanceDate:DEBUFF_START_DATE;
-  const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
-  // Первый уровень включается на 8-й день отсутствия, далее каждые 8 дней.
-  // Дебафф снимается при возвращении; новая серия баффа начинается с 1 посещения.
-  const absenceDebuff=dates.length>0&&absenceDays>=8
-    ?Number((Math.min(3,Math.floor(absenceDays/8))*0.05).toFixed(2))
-    :0;
-  if(absenceDebuff>0)streakDays=0;
-  return {
-    totalDays:dates.length,
-    streakDays,
-    absenceDays,
-    lastAttendanceDate,
-    loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),
-    absenceDebuff
-  };
+ const dates=Array.from(new Set(approvedRows.filter(row=>row?.status==='approved'&&row?.game_day_id!==null&&row?.game_day_id!==undefined).map(row=>{
+  const day=days.find((item:any)=>String(item.id)===String(row.game_day_id));
+  const date=String(day?.game_date||'').slice(0,10);
+  return date&&date<=today&&games.some((game:any)=>String(game.game_day_id)===String(row.game_day_id))?date:'';
+ }).filter(Boolean))).sort();
+ const dayDistance=(from:string,to:string)=>Math.floor((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);
+ const gapPenalty=(gapDays:number)=>{
+  let penalty=0;
+  for(let threshold=8;threshold<=gapDays;threshold+=8)penalty+=gapDays>threshold&&gapDays<=threshold+3?0.02:0.04;
+  return Number(penalty.toFixed(2));
+ };
+ const previousDates=dates.filter(date=>date<DEBUFF_START_DATE),activeDates=dates.filter(date=>date>=DEBUFF_START_DATE);
+ let streakDays=previousDates.length,lastAttendanceDate=previousDates[previousDates.length-1]||'';
+ if(activeDates.length){
+  const firstDate=activeDates[0];if(dayDistance(DEBUFF_START_DATE,firstDate)>=8)streakDays=0;
+  lastAttendanceDate='';
+  activeDates.forEach(date=>{if(lastAttendanceDate&&dayDistance(lastAttendanceDate,date)>=8)streakDays=0;streakDays+=1;lastAttendanceDate=date;});
+ }
+ let historicalDebuff=0,previousDate=DEBUFF_START_DATE;
+ activeDates.forEach(date=>{const gap=dayDistance(previousDate,date);if(gap>=8)historicalDebuff+=gapPenalty(gap);previousDate=date;});
+ const absenceAnchor=lastAttendanceDate>=DEBUFF_START_DATE?lastAttendanceDate:DEBUFF_START_DATE;
+ const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
+ const candidateDebuff=dates.length>0&&absenceDays>=8?Number((Math.floor(absenceDays/8)*0.04).toFixed(2)):0;
+ const totalDebuff=Number((historicalDebuff+candidateDebuff).toFixed(2));
+ return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),candidateDebuff,totalDebuff};
 };
 const adminTeamName=(team:any)=>{const colors:Record<string,string>={'Пунктуальные':'Белые','Сообразительные':'Тёмные','Красивые':'Красные','Стильные':'Жёлтые'};const name=team?.name||'Команда';return colors[name]?`${name} (${colors[name]})`:name;};
 const isNonNegativeInteger=(value:any)=>value!==''&&value!==null&&value!==undefined&&Number.isSafeInteger(Number(value))&&Number(value)>=0;
@@ -139,12 +121,24 @@ export default function App(){
     catch(e){ console.error(e); }
     try{ if(!w.__leagueIcons) w.renderPlayers?.(); }catch{}
     const state=w.getLeagueState?.();
-    setPlayers([...(state?.players||w.players||[])]); setDays([...(state?.days||w.days||[])]); setTeams([...(state?.teams||w.teams||[])]); setGames([...(state?.games||w.games||[])]); setDayPlayers([...(state?.dayPlayers||w.dayPlayers||[])]);
+    const loadedPlayers=[...(state?.players||w.players||[])];
+    setPlayers(loadedPlayers); setDays([...(state?.days||w.days||[])]); setTeams([...(state?.teams||w.teams||[])]); setGames([...(state?.games||w.games||[])]); setDayPlayers([...(state?.dayPlayers||w.dayPlayers||[])]);
     setIcons({...((w.__leagueIcons||{}) as Record<string,string>)});
     try{
       const attendanceResult=await w.sb?.from('game_player_stats').select('player_id,game_day_id,status').eq('status','approved');
-      if(!attendanceResult?.error)setAttendanceRows(attendanceResult?.data||[]);
-      else console.warn('Не удалось загрузить подтверждённые посещения:',attendanceResult.error);
+      if(!attendanceResult?.error){
+        const approvedAttendance=attendanceResult?.data||[];setAttendanceRows(approvedAttendance);
+        for(const player of loadedPlayers){
+          if(!player.debuff_enabled)continue;
+          const effects=getAttendanceEffects(approvedAttendance.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
+          const currentAmount=Number(player.debuff_amount)||0;
+          if(Math.abs(effects.totalDebuff-currentAmount)>0.001){
+            const saved=await w.sb?.from('players').update({debuff_amount:effects.totalDebuff}).eq('id',player.id).eq('debuff_enabled',true);
+            if(!saved?.error)player.debuff_amount=effects.totalDebuff;
+          }
+        }
+        setPlayers([...loadedPlayers]);
+      }else console.warn('Не удалось загрузить подтверждённые посещения:',attendanceResult.error);
     }catch(error){console.warn('Не удалось загрузить подтверждённые посещения:',error);}
     try{const badgeResult=await w.sb?.rpc('get_player_account_badges');if(!badgeResult?.error)setPlayerAccountBadges(badgeResult?.data||[]);else console.warn('Не удалось загрузить отметки аккаунтов игроков:',badgeResult.error);}catch(error){console.warn('Не удалось загрузить отметки аккаунтов игроков:',error);}
     try{
@@ -577,6 +571,19 @@ export default function App(){
   const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);};
   const addPlayer=async(name:string,position:string='',gk:boolean=false)=>{const w=getEngine(); const r=await w?.sb?.from('players').insert({name,position:position||null,is_goalkeeper:gk}).select().single(); if(r?.error)throw r.error; await refresh();setNewPlayerOpen(false);};
   const updatePlayer=async(p:any)=>{const w=getEngine();const r=await w?.sb?.from('players').update({name:p.name,position:p.position||null,is_goalkeeper:!!p.is_goalkeeper}).eq('id',p.id).select().single();if(r?.error)throw r.error;await refresh();setEditingPlayer(null);};
+  const togglePlayerDebuff=async(playerId:number,enabled:boolean)=>{
+    if(!adminVerified)throw new Error('Переключатель доступен только администратору.');
+    const w=getEngine();if(!w?.sb)throw new Error('Нет подключения к базе данных.');
+    const player=players.find((item:any)=>String(item.id)===String(playerId));if(!player)throw new Error('Игрок не найден.');
+    const effects=getAttendanceEffects(attendanceRows.filter((row:any)=>String(row.player_id)===String(playerId)),days,games);
+    const nextAmount=enabled?effects.totalDebuff:0;
+    if(enabled&&nextAmount<=0)throw new Error('Игрок пока не попадает под условия дебаффа.');
+    const result=await w.sb.from('players').update({debuff_enabled:enabled,debuff_amount:nextAmount}).eq('id',playerId).select().single();
+    if(result?.error)throw result.error;
+    setPlayers(prev=>prev.map((item:any)=>String(item.id)===String(playerId)?{...item,...result.data}:item));
+    setPlayerProfile((prev:any)=>prev&&String(prev.id)===String(playerId)?{...prev,...result.data}:prev);
+    return result.data;
+  };
   const deletePlayer=async(id:number)=>{
     if(!confirm('Удалить игрока и всю его статистику, в том числе по отдельным матчам?'))return;
     const w=getEngine();if(!w?.sb){alert('Нет подключения к базе данных.');return;}
@@ -611,10 +618,10 @@ export default function App(){
     // Count distinct played dates, not match count or duplicate stat rows.
     const playedDays=new Set(entries.map((x:any)=>String(x.game_day_id))).size;
     const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(p.id)),days,games);
-    const baseRating=Number(totals?.rating);
-    const base=Number.isFinite(baseRating)?baseRating:5;
-    const adjustedRating=base+effects.loyaltyBonus-effects.absenceDebuff;
-    const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays,baseRating:base,loyaltyBonus:effects.loyaltyBonus,absenceDebuff:effects.absenceDebuff,absenceDays:effects.absenceDays,streakDays:effects.streakDays,rating:Number((isOwnerPlayer(p)?Math.max(7,adjustedRating):adjustedRating).toFixed(2))};
+    const baseRating=Number(totals?.rating),base=Number.isFinite(baseRating)?baseRating:5;
+    const absenceDebuff=p.debuff_enabled?Number(p.debuff_amount)||effects.totalDebuff:0;
+    const adjustedRating=base+effects.loyaltyBonus-absenceDebuff;
+    const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays,baseRating:base,loyaltyBonus:effects.loyaltyBonus,absenceDebuff,absenceDays:effects.absenceDays,candidateDebuff:effects.candidateDebuff,streakDays:effects.streakDays,rating:Number((isOwnerPlayer(p)?Math.max(7,adjustedRating):adjustedRating).toFixed(2))};
     return {p,s};
   }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,attendanceRows,games,teams,days,ready]);
 
@@ -633,7 +640,7 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={adminVerified} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
       {tab==='account' && <AccountPage session={session} adminVerified={adminVerified} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
       {tab==='admin' && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
     </main>
@@ -642,7 +649,7 @@ export default function App(){
     {newPlayerOpen && <PlayerModal onClose={()=>setNewPlayerOpen(false)} onSave={addPlayer}/>}
     {newDayOpen && <CreateGameDayModal engine={getEngine()} onClose={()=>setNewDayOpen(false)} onSaved={async(createdDay)=>{setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);setTab('home');await refresh();setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);}}/>}
     {editingPlayer && <PlayerModal player={editingPlayer} onClose={()=>setEditingPlayer(null)} onSave={updatePlayer}/>}
-    {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} attendanceRows={attendanceRows} games={games} icons={icons} engine={getEngine()} onClose={()=>setPlayerProfile(null)}/>}
+    {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} attendanceRows={attendanceRows} games={games} icons={icons} engine={getEngine()} isAdmin={adminVerified} onToggleDebuff={togglePlayerDebuff} onClose={()=>setPlayerProfile(null)}/>}
     {dayModal!==null && <div className="legacy-modal-shell"><button className="shell-close" onClick={closeLegacyModal} aria-label="Закрыть окно"><X/></button></div>}
     {quickEntryOpen && session && <QuickEntryModal players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={()=>setQuickEntryOpen(false)} onSaved={async()=>{await refresh();}}/>}
     {editDayId!==null && <EditDayModal dayId={editDayId} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={closeEditModal} onSaved={async()=>{setEditDayId(null);await refresh();}}/>}
@@ -667,7 +674,7 @@ function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[]
  </section>
 }
 
-function Rating({rows,icons,playerBadges,sort,setSort,onPlayer}:{rows:any[];icons:Record<string,string>;playerBadges:any[];sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void}){
+function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void}){
   const badgesByPlayer=new Map(playerBadges.map((badge:any)=>[String(badge.player_id),badge]));
   const items=[...rows].sort((a,b)=>{
     const name=(a.p.name||'').localeCompare(b.p.name||'','ru',{sensitivity:'base'});
@@ -694,7 +701,7 @@ function Rating({rows,icons,playerBadges,sort,setSort,onPlayer}:{rows:any[];icon
       <span className="rating-col-icon"><Icon name="own"/><em>Автогол</em></span>
       <span className="rating-col-icon"><Icon name="rating"/><em>Рейтинг</em></span>
     </div>
-    {list.map((x,i)=><button className="rating-row rating-row-11" key={x.p.id} onClick={()=>onPlayer(x.p.id)}>
+    {list.map((x,i)=><button className={`rating-row rating-row-11${isAdmin&&(x.s.candidateDebuff>0||x.s.absenceDebuff>0)?' rating-row-debuff-candidate':''}`} key={x.p.id} onClick={()=>onPlayer(x.p.id)}>
       <span className="rank">{showRank?i+1:'—'}</span>
       <span className="player-name"><strong><span className="player-name-text">{x.p.name}</span>{(()=>{const badge:any=badgesByPlayer.get(String(x.p.id));return <span className="player-account-badges">{badge?.is_admin&&<span className="player-account-alpha-omega" title="Администратор лиги — Альфа и Омега" aria-label="Администратор лиги — Альфа и Омега">ΑΩ</span>}{(badge?.auth_provider==='telegram'||badge?.auth_provider==='email')&&!badge?.is_admin&&<span className="player-account-telegram" title="Пользователь авторизован" aria-label="Пользователь авторизован"><Zap size={14} strokeWidth={3}/></span>}</span>})()}{x.s.loyaltyBonus>0&&<span title={`Баф за непрерывную серию посещений: +${x.s.loyaltyBonus.toFixed(2)}`} aria-label="Баф за лояльность" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',marginLeft:5,color:'#e6b85c',fontSize:14,lineHeight:1,verticalAlign:'middle',textShadow:'0 0 7px rgba(222,164,62,.35)'}}>✦</span>}{x.s.absenceDebuff>0&&<span title={`Дебафф за отсутствие ${x.s.absenceDays} дней: −${x.s.absenceDebuff.toFixed(2)}`} aria-label="Дебафф за отсутствие" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',marginLeft:5,color:'#df8b79',fontSize:12,lineHeight:1,verticalAlign:'middle'}}>▼</span>}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small></span>
       <span>{x.p.position||'Игрок'}</span>
@@ -1361,7 +1368,9 @@ function LoyaltyProgress({totalDays,absenceDebuff=0,absenceDays=0}:{totalDays:nu
   </div>;
 }
 
-function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,icons,onClose,engine}:{player:any;days:any[];teams:any[];dayPlayers:any[];attendanceRows:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any}){
+function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,icons,onClose,engine,isAdmin,onToggleDebuff}:{player:any;days:any[];teams:any[];dayPlayers:any[];attendanceRows:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any;isAdmin:boolean;onToggleDebuff:(playerId:number,enabled:boolean)=>Promise<any>}){
+  const [debuffBusy,setDebuffBusy]=useState(false),[debuffError,setDebuffError]=useState('');
+  const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>engine;
   const entries:any[]=getEngine()?.playerDayEntries?.(player)||dayPlayers.filter(x=>String(x.player_id)===String(player.id)).filter((x,i,a)=>a.findIndex(y=>String(y.game_day_id)===String(x.game_day_id))===i);
@@ -1380,13 +1389,21 @@ function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,i
     const rawRating=Number(getEngine()?.dayRatingForEntry?.(x)); const rating=Number.isFinite(rawRating)?rawRating:(player.is_goalkeeper?5.5:5);
     return {x,d,t,r,rating};
   }).sort((a,b)=>(b.d?.game_date||'').localeCompare(a.d?.game_date||''));
-  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const adjustedOverall=baseOverall+effects.loyaltyBonus-effects.absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
+  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const absenceDebuff=player.debuff_enabled?Number(player.debuff_amount)||effects.totalDebuff:0; const adjustedOverall=baseOverall+effects.loyaltyBonus-absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
   return <div className="modal-backdrop profile-backdrop">
     <div className="modal-card profile-card">
       <button className="modal-x" onClick={onClose} aria-label="Закрыть"><X/></button>
       <div className="eyebrow">ПРОФИЛЬ ИГРОКА</div>
       <div className="profile-title-row"><div><h2>{player.name}</h2><p className="muted">{player.position||'Игрок'}{player.is_goalkeeper?' · Вратарь':''}</p></div><div className="profile-rating"><span>{icon('rating',38)}</span><small>Общий рейтинг</small><b>{overall.toFixed(2)}</b><em className={playedDays>=3?'profile-rating-status confirmed':'profile-rating-status preliminary'}>{playedDays>=3?'Подтверждённый рейтинг':`Предварительный · ещё ${3-playedDays} ${playedDays===2?'игровой день':'игровых дня'} до подтверждения`}</em></div></div>
-      <div style={{margin:'16px 0 22px'}}><LoyaltyProgress totalDays={effects.streakDays} absenceDebuff={effects.absenceDebuff} absenceDays={effects.absenceDays}/></div>
+      <div className="loyalty-debuff-wrap" style={{margin:'16px 0 12px'}}>
+        <LoyaltyProgress totalDays={effects.streakDays} absenceDebuff={absenceDebuff} absenceDays={effects.absenceDays}/>
+        {player.debuff_enabled&&<><div className="loyalty-debuff-shade"/><div className="loyalty-debuff-stamp">ДЕБАФФ ВКЛЮЧЕН</div></>}
+      </div>
+      {isAdmin&&playedDays>=3&&<div className="admin-debuff-control">
+        <div><strong>Ручное управление дебаффом</strong><small>{player.debuff_enabled? `Активен · −${absenceDebuff.toFixed(2)} к рейтингу` : effects.candidateDebuff>0? `Кандидат · −${effects.candidateDebuff.toFixed(2)} по текущему отсутствию` : 'Пока не попадает под условия'}</small></div>
+        <button type="button" className={player.debuff_enabled?'admin-debuff-toggle active':'admin-debuff-toggle'} disabled={debuffBusy||(!player.debuff_enabled&&effects.candidateDebuff<=0)} aria-pressed={!!player.debuff_enabled} onClick={toggleDebuff}>{debuffBusy?'СОХРАНЯЮ…':player.debuff_enabled?'ВЫКЛЮЧИТЬ ДЕБАФФ':'ВКЛЮЧИТЬ ДЕБАФФ'}</button>
+        {debuffError&&<div className="admin-debuff-error">{debuffError}</div>}
+      </div>}
       <div className="profile-stat-grid">
         <div className="profile-stat">{icon('goal',30)}<small>Голы</small><b>{totals.goals}</b></div>
         <div className="profile-stat">{icon('pass',30)}<small>Пасы</small><b>{totals.assists}</b></div>
