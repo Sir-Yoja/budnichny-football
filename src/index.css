@@ -1095,3 +1095,48 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .view-mode-switch button.user-active{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#f0f3f5;}
 @media(max-width:800px){.view-mode-switch{margin-left:auto;padding:3px;gap:2px}.view-mode-switch button{padding:7px 8px;font-size:10px;gap:4px}.mobile-menu{margin-left:8px;}}
 @media(max-width:390px){.view-mode-switch button{padding:6px 6px;font-size:9px}.view-mode-switch button svg{display:none;}}
+
+
+/* Searchable game-day archive */
+.day-archive-tools{display:grid;grid-template-columns:minmax(220px,2fr) repeat(2,minmax(150px,1fr)) auto;gap:12px;align-items:end;margin:22px 0 10px;padding:16px;border:1px solid var(--line,rgba(255,255,255,.1));border-radius:14px;background:rgba(8,17,25,.72)}
+.day-archive-tools label{display:grid;gap:7px;min-width:0}
+.day-archive-tools label span{font-size:12px;color:#aab8c3;font-weight:700}
+.day-archive-tools input{width:100%;min-width:0;box-sizing:border-box;min-height:42px;padding:9px 11px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#0b151e;color:#edf2f5;font:inherit}
+.day-archive-tools button{min-height:42px;padding:9px 14px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);color:#dce5eb;font:inherit;cursor:pointer}
+.day-archive-caption{margin:0 2px 14px;color:#91a2ae;font-size:13px}.day-archive-caption b{color:#e5bd69}
+@media(max-width:760px){.day-archive-tools{grid-template-columns:1fr 1fr}.day-archive-tools label:first-child{grid-column:1/-1}.day-archive-tools button{grid-column:1/-1}}
+
+
+/* Submission review notifications */
+.account-stat-history-item.account-notification-unread{border-color:rgba(224,180,86,.58);background:rgba(224,180,86,.055);cursor:pointer;box-shadow:inset 3px 0 0 rgba(224,180,86,.8)}
+.account-stat-history-item{cursor:pointer}
+.account-notification-new{color:#e5bd69;font-size:10px;letter-spacing:.08em;font-weight:900}
+
+
+/* Player profile effect timeline */
+.profile-effect-history{margin-top:26px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1)}
+.profile-effect-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.profile-effect-columns>div{min-width:0;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.025)}
+.profile-effect-heading{display:block;margin-bottom:8px;font-size:14px}.profile-effect-heading.buff{color:#e4b65d}.profile-effect-heading.debuff{color:#df9484}
+.profile-effect-columns p,.profile-effect-note{font-size:12px;line-height:1.5;color:#9eacb7;margin:6px 0 10px}
+.profile-effect-columns ul{list-style:none;padding:0;margin:10px 0;display:grid;gap:8px}
+.profile-effect-columns li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:#dce4e9}
+.profile-effect-columns li b{color:#e4b65d;font-size:13px}.profile-effect-columns li small{grid-column:1/-1;color:#82939f;font-size:11px}
+@media(max-width:650px){.profile-effect-columns{grid-template-columns:1fr}}
+
+
+/* Rating period, position and comparison tools */
+.rating-analysis-filters{display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(2,minmax(145px,1fr)) auto;gap:11px;align-items:end;margin:16px 0 14px;padding:15px;border:1px solid rgba(255,255,255,.1);border-radius:13px;background:rgba(8,17,25,.68)}
+.rating-analysis-filters label,.rating-compare-selects label{display:grid;gap:7px;min-width:0}
+.rating-analysis-filters label span,.rating-compare-selects label span{font-size:12px;font-weight:700;color:#aab8c3}
+.rating-analysis-filters input,.rating-analysis-filters select,.rating-compare-selects select{width:100%;min-width:0;box-sizing:border-box;min-height:40px;padding:8px 10px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#0b151e;color:#edf2f5;font:inherit}
+.rating-analysis-filters button{min-height:40px;padding:8px 13px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);color:#dce5eb;font:inherit;cursor:pointer}
+.rating-compare{margin-top:34px;padding-top:18px;border-top:1px solid rgba(255,255,255,.1)}
+.rating-compare-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0 16px}
+.rating-compare-table{border:1px solid rgba(255,255,255,.1);border-radius:12px;overflow:hidden;background:rgba(8,17,25,.55)}
+.rating-compare-header,.rating-compare-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,.8fr) minmax(0,1fr);gap:8px;align-items:center;padding:11px 13px;text-align:center}
+.rating-compare-header{background:rgba(255,255,255,.045);font-size:13px;color:#e9c477}.rating-compare-header span,.rating-compare-row span{color:#8fa0ac;font-size:12px}
+.rating-compare-row{border-top:1px solid rgba(255,255,255,.07);font-size:14px}.rating-compare-row strong{color:#edf2f5;font-variant-numeric:tabular-nums}
+.rating-compare-hint{color:#91a2ae;font-size:13px}
+@media(max-width:760px){.rating-analysis-filters{grid-template-columns:1fr 1fr}.rating-analysis-filters label:first-child{grid-column:1/-1}.rating-analysis-filters button{grid-column:1/-1}}
+@media(max-width:520px){.rating-compare-selects{grid-template-columns:1fr}.rating-compare-header,.rating-compare-row{grid-template-columns:minmax(0,1fr) minmax(80px,.8fr) minmax(0,1fr);padding:9px 7px;font-size:12px}}
