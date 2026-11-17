@@ -714,9 +714,7 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayP
     if(!hasPeriod)return {...row,periodEntries:entries};
     const goals=entries.reduce((n,x)=>n+(Number(x.goals)||0),0),assists=entries.reduce((n,x)=>n+(Number(x.assists)||0),0);
     const saves=entries.reduce((n,x)=>n+(Number(x.saves)||0),0),conceded=entries.reduce((n,x)=>n+(Number(x.conceded)||0),0),ownGoals=entries.reduce((n,x)=>n+(Number(x.own_goals)||0),0);
-    const dailyRatings=entries.map(x=>Number((window as any).__unused)||Number((document as any).__unused)||NaN);
-    const engineRating=entries.map(x=>Number((window as any).parent?.document?.querySelector?.('#unused')?.dataset?.rating)).filter(Number.isFinite);
-    const avgRating=entries.length?entries.reduce((sum,x)=>{const value=Number((window as any).__leagueDayRating?.(x));return sum+(Number.isFinite(value)?value:(row.p.is_goalkeeper?5.5:5));},0)/entries.length:(row.p.is_goalkeeper?5.5:5);
+    const avgRating=entries.length?entries.reduce((sum,x)=>{const value=Number(engine?.dayRatingForEntry?.(x));return sum+(Number.isFinite(value)?value:(row.p.is_goalkeeper?5.5:5));},0)/entries.length:(row.p.is_goalkeeper?5.5:5);
     const s={...row.s,days:distinctDays,goals,assists,gp:goals+assists,saves,conceded,ownGoals,rating:Number(avgRating.toFixed(2)),loyaltyBonus:0,absenceDebuff:0,candidateDebuff:0,absenceDays:0};
     return {...row,s,periodEntries:entries};
   }).filter(row=>positionFilter==='all'||(positionFilter==='goalkeeper'?!!row.p.is_goalkeeper:String(row.p.position||'Игрок')===positionFilter));
