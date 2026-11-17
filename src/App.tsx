@@ -58,8 +58,8 @@ const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=loca
   const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
   // Первый уровень включается на 8-й день отсутствия, далее каждые 8 дней.
   // Дебафф снимается при возвращении; новая серия баффа начинается с 1 посещения.
-  const absenceDebuff=lastAttendanceDate||previousDates.length===0
-    ?(absenceDays>=8?Number((Math.min(3,Math.floor(absenceDays/8))*0.05).toFixed(2)):0)
+  const absenceDebuff=dates.length>0&&absenceDays>=8
+    ?Number((Math.min(3,Math.floor(absenceDays/8))*0.05).toFixed(2))
     :0;
   if(absenceDebuff>0)streakDays=0;
   return {
