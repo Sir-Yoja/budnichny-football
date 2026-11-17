@@ -35,7 +35,7 @@ const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=loca
  const dayDistance=(from:string,to:string)=>Math.floor((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);
  const gapPenalty=(gapDays:number)=>{
   let penalty=0;
-  for(let threshold=8;threshold<=gapDays;threshold+=8)penalty+=gapDays<=threshold+3?0.02:0.04;
+  for(let threshold=8;threshold<=gapDays;threshold+=8)penalty+=gapDays>threshold&&gapDays<=threshold+3?0.02:0.04;
   return Number(penalty.toFixed(2));
  };
  const previousDates=dates.filter(date=>date<DEBUFF_START_DATE),activeDates=dates.filter(date=>date>=DEBUFF_START_DATE);
