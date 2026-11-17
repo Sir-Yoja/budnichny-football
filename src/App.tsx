@@ -25,6 +25,7 @@ const fmtDate=(v:string)=>{ if(!v)return '—'; const d=new Date(`${v}T00:00:00`
 const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); return new Intl.DateTimeFormat('ru-RU',{weekday:'long'}).format(d).toUpperCase(); };
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const isOwnerPlayer=(player:any)=>String(player?.id)==='7'||['сергеев сергей','сергей сергеев'].includes(String(player?.name||'').trim().toLocaleLowerCase('ru-RU'));
+const DEBUFF_START_DATE='2026-11-17';
 const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=localDateKey())=>{
   // Посещением считается только одобренная статистика матча. Несколько матчей
   // одного игрового дня дают одно посещение; состав без статистики не учитывается.
@@ -37,17 +38,27 @@ const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=loca
     })
     .filter(Boolean))).sort();
   const dayDistance=(from:string,to:string)=>Math.floor((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);
-  let streakDays=0;
-  let lastAttendanceDate='';
-  dates.forEach(date=>{
-    if(lastAttendanceDate&&dayDistance(lastAttendanceDate,date)>=8)streakDays=0;
-    streakDays+=1;
-    lastAttendanceDate=date;
-  });
-  const absenceDays=lastAttendanceDate?Math.max(0,dayDistance(lastAttendanceDate,today)):0;
-  // Дебафф возникает после 8 календарных дней без подтверждённого участия.
-  // Он снимается полностью при возвращении; каждый такой раз новая серия баффа.
-  const absenceDebuff=lastAttendanceDate&&absenceDays>=8
+  const previousDates=dates.filter(date=>date<DEBUFF_START_DATE);
+  const activeDates=dates.filter(date=>date>=DEBUFF_START_DATE);
+  // До запуска новой механики сохраняем уже заработанный бафф, но не считаем
+  // прежние пропуски дебаффом. Отсчёт отсутствия начинается с даты запуска.
+  let streakDays=previousDates.length;
+  let lastAttendanceDate=previousDates[previousDates.length-1]||'';
+  if(activeDates.length){
+    const firstDate=activeDates[0];
+    if(dayDistance(DEBUFF_START_DATE,firstDate)>=8)streakDays=0;
+    lastAttendanceDate='';
+    activeDates.forEach(date=>{
+      if(lastAttendanceDate&&dayDistance(lastAttendanceDate,date)>=8)streakDays=0;
+      streakDays+=1;
+      lastAttendanceDate=date;
+    });
+  }
+  const absenceAnchor=lastAttendanceDate>=DEBUFF_START_DATE?lastAttendanceDate:DEBUFF_START_DATE;
+  const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
+  // Первый уровень включается на 8-й день отсутствия, далее каждые 8 дней.
+  // Дебафф снимается при возвращении; новая серия баффа начинается с 1 посещения.
+  const absenceDebuff=dates.length>0&&absenceDays>=8
     ?Number((Math.min(3,Math.floor(absenceDays/8))*0.05).toFixed(2))
     :0;
   if(absenceDebuff>0)streakDays=0;
