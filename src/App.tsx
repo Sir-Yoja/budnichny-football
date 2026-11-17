@@ -135,9 +135,9 @@ export default function App(){
         // A player can only have been manually debuffed after reaching the absence threshold,
         // so a fresh attendance resets absenceDays to zero.
         if(effects.lastAttendanceDate&&effects.absenceDays===0){
-          const cleared=await w.sb?.from('players').update({debuff_enabled:false,debuff_amount:0}).eq('id',player.id).eq('debuff_enabled',true);
-          if(!cleared?.error){player.debuff_enabled=false;player.debuff_amount=0;}
-          else console.warn('Не удалось автоматически снять дебафф:',cleared.error);
+          const cleared=await w.sb?.rpc('clear_player_debuff_after_attendance',{p_player_id:Number(player.id)});
+          if(!cleared?.error&&cleared?.data===true){player.debuff_enabled=false;player.debuff_amount=0;}
+          else if(cleared?.error)console.warn('Не удалось автоматически снять дебафф:',cleared.error);
           continue;
         }
         const currentAmount=Number(player.debuff_amount)||0;
