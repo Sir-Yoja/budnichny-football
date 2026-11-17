@@ -1086,3 +1086,12 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .admin-debuff-toggle:disabled{opacity:.42;cursor:not-allowed;}
 .admin-debuff-error{flex-basis:100%;color:#f19ba5;font-size:12px;}
 @media(max-width:560px){.admin-debuff-control{align-items:stretch;}.admin-debuff-toggle{width:100%;}}
+
+
+/* Admin-only switch for previewing the public-facing interface. */
+.view-mode-switch{margin-left:auto;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid rgba(255,255,255,.10);border-radius:11px;background:rgba(8,17,24,.72);}
+.view-mode-switch button{display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid transparent;border-radius:8px;padding:8px 11px;background:transparent;color:#9eabb5;font:700 11px 'Manrope',Arial,sans-serif;cursor:pointer;white-space:nowrap;transition:background .16s ease,color .16s ease,border-color .16s ease;}
+.view-mode-switch button.active{background:rgba(87,214,138,.13);border-color:rgba(87,214,138,.28);color:#d9f8e4;}
+.view-mode-switch button.user-active{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#f0f3f5;}
+@media(max-width:800px){.view-mode-switch{margin-left:auto;padding:3px;gap:2px}.view-mode-switch button{padding:7px 8px;font-size:10px;gap:4px}.mobile-menu{margin-left:8px;}}
+@media(max-width:390px){.view-mode-switch button{padding:6px 6px;font-size:9px}.view-mode-switch button svg{display:none;}}
