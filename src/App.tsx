@@ -1379,7 +1379,9 @@ function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,i
   const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>engine;
-  const entries:any[]=getEngine()?.playerDayEntries?.(player)||dayPlayers.filter(x=>String(x.player_id)===String(player.id)).filter((x,i,a)=>a.findIndex(y=>String(y.game_day_id)===String(x.game_day_id))===i);
+  // Keep profile participation count/history aligned with the main rating: one entry per distinct game day.
+  // The legacy playerDayEntries helper can omit days, so use the same dayPlayers source as the rating table.
+  const entries:any[]=dayPlayers.filter(x=>String(x.player_id)===String(player.id)).filter((x,i,a)=>a.findIndex(y=>String(y.game_day_id)===String(x.game_day_id))===i);
   const playedDays=entries.length;
   const canonicalTotals=getEngine()?.playerTotals?.(player);
   const totals={
