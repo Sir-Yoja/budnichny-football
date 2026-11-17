@@ -652,7 +652,7 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile} days={days} dayPlayers={dayPlayers} games={games}/>}
       {tab==='account' && <AccountPage session={session} adminVerified={showAdminView} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
       {tab==='admin' && showAdminView && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
     </main>
@@ -701,9 +701,27 @@ function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[]
  </section>
 }
 
-function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void}){
+function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayPlayers,games}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void;days:any[];dayPlayers:any[];games:any[]}){
+  const [positionFilter,setPositionFilter]=useState('all'),[fromDate,setFromDate]=useState(''),[toDate,setToDate]=useState('');
+  const [compareA,setCompareA]=useState(''),[compareB,setCompareB]=useState('');
+  const hasPeriod=!!(fromDate||toDate);
+  const positions=Array.from(new Set(rows.map(x=>String(x.p.position||'Игрок')))).sort((a,b)=>a.localeCompare(b,'ru'));
+  const dayMap=new Map(days.map(d=>[String(d.id),d]));
+  const filteredRows=rows.map(row=>{
+    const allEntries=dayPlayers.filter(x=>String(x.player_id)===String(row.p.id));
+    const entries=allEntries.filter(x=>{const day:any=dayMap.get(String(x.game_day_id));const date=String(day?.game_date||'');return (!fromDate||date>=fromDate)&&(!toDate||date<=toDate);});
+    const distinctDays=new Set(entries.map(x=>String(x.game_day_id))).size;
+    if(!hasPeriod)return {...row,periodEntries:entries};
+    const goals=entries.reduce((n,x)=>n+(Number(x.goals)||0),0),assists=entries.reduce((n,x)=>n+(Number(x.assists)||0),0);
+    const saves=entries.reduce((n,x)=>n+(Number(x.saves)||0),0),conceded=entries.reduce((n,x)=>n+(Number(x.conceded)||0),0),ownGoals=entries.reduce((n,x)=>n+(Number(x.own_goals)||0),0);
+    const dailyRatings=entries.map(x=>Number((window as any).__unused)||Number((document as any).__unused)||NaN);
+    const engineRating=entries.map(x=>Number((window as any).parent?.document?.querySelector?.('#unused')?.dataset?.rating)).filter(Number.isFinite);
+    const avgRating=entries.length?entries.reduce((sum,x)=>{const value=Number((window as any).__leagueDayRating?.(x));return sum+(Number.isFinite(value)?value:(row.p.is_goalkeeper?5.5:5));},0)/entries.length:(row.p.is_goalkeeper?5.5:5);
+    const s={...row.s,days:distinctDays,goals,assists,gp:goals+assists,saves,conceded,ownGoals,rating:Number(avgRating.toFixed(2)),loyaltyBonus:0,absenceDebuff:0,candidateDebuff:0,absenceDays:0};
+    return {...row,s,periodEntries:entries};
+  }).filter(row=>positionFilter==='all'||(positionFilter==='goalkeeper'?!!row.p.is_goalkeeper:String(row.p.position||'Игрок')===positionFilter));
   const badgesByPlayer=new Map(playerBadges.map((badge:any)=>[String(badge.player_id),badge]));
-  const items=[...rows].sort((a,b)=>{
+  const items=[...filteredRows].sort((a,b)=>{
     const name=(a.p.name||'').localeCompare(b.p.name||'','ru',{sensitivity:'base'});
     if(sort==='name') return name;
     const get=(x:any)=>sort==='days'?x.s.days:sort==='goals'?x.s.goals:sort==='assists'?x.s.assists:sort==='gp'?x.s.gp:sort==='saves'?x.s.saves:sort==='conceded'?x.s.conceded:sort==='ownGoals'?x.s.ownGoals:x.s.rating;
@@ -712,44 +730,42 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:an
   const confirmed=items.filter(x=>(Number(x.s.days)||0)>=3);
   const preliminary=items.filter(x=>(Number(x.s.days)||0)>0&&(Number(x.s.days)||0)<3);
   const inactive=items.filter(x=>(Number(x.s.days)||0)===0);
-  const filters=[
-    ['name','Имя','player'],['days','Игровые дни','day'],['goals','Забил','goal'],['assists','Пас','pass'],['gp','Г+П','gp'],
-    ['saves','Сейвы','saves'],['conceded','Пропустил','conceded'],['ownGoals','Автоголы','own'],['rating','Общий рейтинг','rating']
-  ] as const;
+  const filters=[['name','Имя','player'],['days','Игровые дни','day'],['goals','Забил','goal'],['assists','Пас','pass'],['gp','Г+П','gp'],['saves','Сейвы','saves'],['conceded','Пропустил','conceded'],['ownGoals','Автоголы','own'],['rating','Общий рейтинг','rating']] as const;
   const Icon=({name,size=44}:{name:string;size?:number})=>icons[name]?<img className="rating-icon-img" src={icons[name]} style={{width:size,height:size}} alt="" aria-hidden="true"/>:<span className="rating-icon-fallback"/>;
   const renderTable=(list:any[],showRank=true)=><div className="rating-table">
-    <div className="rating-head rating-head-icons">
-      <span>#</span><span>Игрок</span><span>Позиция</span><span>Игровые дни</span>
-      <span className="rating-col-icon"><Icon name="goal"/><em>Гол</em></span>
-      <span className="rating-col-icon"><Icon name="pass"/><em>Пас</em></span>
-      <span className="rating-col-icon"><Icon name="gp"/><em>Г+П</em></span>
-      <span className="rating-col-icon"><Icon name="saves"/><em>Сейвы</em></span>
-      <span className="rating-col-icon"><Icon name="conceded"/><em>Пропустил</em></span>
-      <span className="rating-col-icon"><Icon name="own"/><em>Автогол</em></span>
-      <span className="rating-col-icon"><Icon name="rating"/><em>Рейтинг</em></span>
-    </div>
+    <div className="rating-head rating-head-icons"><span>#</span><span>Игрок</span><span>Позиция</span><span>Игровые дни</span><span className="rating-col-icon"><Icon name="goal"/><em>Гол</em></span><span className="rating-col-icon"><Icon name="pass"/><em>Пас</em></span><span className="rating-col-icon"><Icon name="gp"/><em>Г+П</em></span><span className="rating-col-icon"><Icon name="saves"/><em>Сейвы</em></span><span className="rating-col-icon"><Icon name="conceded"/><em>Пропустил</em></span><span className="rating-col-icon"><Icon name="own"/><em>Автогол</em></span><span className="rating-col-icon"><Icon name="rating"/><em>Рейтинг</em></span></div>
     {list.map((x,i)=><button className={`rating-row rating-row-11${showRank&&isAdmin&&!x.p.debuff_enabled&&x.s.candidateDebuff>0?' rating-row-debuff-candidate':''}`} key={x.p.id} onClick={()=>onPlayer(x.p.id)}>
       <span className="rank">{showRank?i+1:'—'}</span>
-      <span className="player-name"><strong><span className="player-name-text">{x.p.name}</span>{(()=>{const badge:any=badgesByPlayer.get(String(x.p.id));return <span className="player-account-badges">{badge?.is_admin&&<span className="player-account-alpha-omega" title="Администратор лиги — Альфа и Омега" aria-label="Администратор лиги — Альфа и Омега">ΑΩ</span>}{(badge?.auth_provider==='telegram'||badge?.auth_provider==='email')&&!badge?.is_admin&&<span className="player-account-telegram" title="Пользователь авторизован" aria-label="Пользователь авторизован"><Zap size={14} strokeWidth={3}/></span>}</span>})()}{x.s.loyaltyBonus>0&&<span title={`Баф за непрерывную серию посещений: +${x.s.loyaltyBonus.toFixed(2)}`} aria-label="Баф за лояльность" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',marginLeft:5,color:'#e6b85c',fontSize:14,lineHeight:1,verticalAlign:'middle',textShadow:'0 0 7px rgba(222,164,62,.35)'}}>✦</span>}{x.s.absenceDebuff>0&&<span title={`Дебафф за отсутствие ${x.s.absenceDays} дней: −${x.s.absenceDebuff.toFixed(2)}`} aria-label="Дебафф за отсутствие" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',marginLeft:5,color:'#df8b79',fontSize:12,lineHeight:1,verticalAlign:'middle'}}>▼</span>}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small></span>
-      <span>{x.p.position||'Игрок'}</span>
-      <span>{x.s.days}</span><span>{x.s.goals}</span><span>{x.s.assists}</span><strong>{x.s.gp}</strong>
-      <span>{x.s.saves}</span><span>{x.s.conceded}</span><span>{x.s.ownGoals}</span><b className="rating-value">{x.s.days?Number(x.s.rating).toFixed(2):'—'}</b>
+      <span className="player-name"><strong><span className="player-name-text">{x.p.name}</span>{(()=>{const badge:any=badgesByPlayer.get(String(x.p.id));return <span className="player-account-badges">{badge?.is_admin&&<span className="player-account-alpha-omega" title="Администратор лиги — Альфа и Омега" aria-label="Администратор лиги — Альфа и Омега">ΑΩ</span>}{(badge?.auth_provider==='telegram'||badge?.auth_provider==='email')&&!badge?.is_admin&&<span className="player-account-telegram" title="Пользователь авторизован" aria-label="Пользователь авторизован"><Zap size={14} strokeWidth={3}/></span>}</span>})()}{!hasPeriod&&x.s.loyaltyBonus>0&&<span title={`Баф за непрерывную серию посещений: +${x.s.loyaltyBonus.toFixed(2)}`} style={{marginLeft:5,color:'#e6b85c'}}>✦</span>}{!hasPeriod&&x.s.absenceDebuff>0&&<span title={`Дебафф за отсутствие ${x.s.absenceDays} дней: −${x.s.absenceDebuff.toFixed(2)}`} style={{marginLeft:5,color:'#df8b79'}}>▼</span>}</strong><small>{x.p.position||'Игрок'}{x.p.is_goalkeeper?' · Вратарь':''}</small></span>
+      <span>{x.p.position||'Игрок'}</span><span>{x.s.days}</span><span>{x.s.goals}</span><span>{x.s.assists}</span><strong>{x.s.gp}</strong><span>{x.s.saves}</span><span>{x.s.conceded}</span><span>{x.s.ownGoals}</span><b className="rating-value">{x.s.days?Number(x.s.rating).toFixed(2):'—'}</b>
     </button>)}
     {!list.length&&<div className="rating-empty-state">В этой категории пока нет игроков.</div>}
   </div>;
+  const selectedA=items.find(x=>String(x.p.id)===compareA),selectedB=items.find(x=>String(x.p.id)===compareB);
+  const compareMetrics=[['Игровые дни','days'],['Голы','goals'],['Пасы','assists'],['Г+П','gp'],['Сейвы','saves'],['Пропущено','conceded'],['Автоголы','ownGoals'],['Средний рейтинг','rating']] as const;
+  const compareLabel=(x:any,key:string)=>key==='rating'?(x?.s.days?Number(x.s.rating).toFixed(2):'—'):String(x?.s[key]??0);
   return <section className="page rating-page">
-    <div className="section-head rating-intro"><div><h2>Рейтинг игроков</h2><p>В основной рейтинг попадают игроки после 3 игровых дней. До этого рейтинг предварительный.</p></div></div>
+    <div className="section-head rating-intro"><div><h2>Рейтинг игроков</h2><p>{hasPeriod?'Показатели пересчитаны только по игровым дням выбранного периода.':'В основной рейтинг попадают игроки после 3 игровых дней. До этого рейтинг предварительный.'}</p></div></div>
+    <div className="rating-analysis-filters">
+     <label><span>Позиция</span><select value={positionFilter} onChange={e=>setPositionFilter(e.target.value)}><option value="all">Все позиции</option><option value="goalkeeper">Вратари</option>{positions.map(p=><option key={p} value={p}>{p}</option>)}</select></label>
+     <label><span>С даты</span><input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}/></label>
+     <label><span>По дату</span><input type="date" value={toDate} onChange={e=>setToDate(e.target.value)}/></label>
+     <button type="button" onClick={()=>{setPositionFilter('all');setFromDate('');setToDate('');}}>Сбросить фильтры</button>
+    </div>
     <div className="rating-filters">{filters.map(([key,label,icon])=><button key={key} className={sort===key?'rating-filter active':'rating-filter'} onClick={()=>setSort(key)}><Icon name={icon} size={22}/><span>{label}</span></button>)}</div>
-
     <div className="rating-group-head"><div><h3>Подтверждённый рейтинг</h3><p>3 и более игровых дней · игроки ранжируются в основном зачёте</p></div><span className="rating-group-count">{confirmed.length} игроков</span></div>
     {renderTable(confirmed,true)}
-
     <div className="rating-group-head rating-group-preliminary"><div><h3>Предварительный рейтинг</h3><p>1–2 игровых дня · оценки видны, но игроки не занимают места в основном рейтинге</p></div><span className="rating-group-count">{preliminary.length} игроков</span></div>
     {renderTable(preliminary,false)}
-
     {inactive.length>0&&<><div className="rating-group-head rating-group-inactive"><div><h3>Пока без игровых дней</h3><p>Игроки есть в базе, но ещё не участвовали в сохранённых игровых днях</p></div><span className="rating-group-count">{inactive.length} игроков</span></div>{renderTable(inactive,false)}</>}
+    <div className="rating-compare">
+     <div className="rating-group-head"><div><h3>Сравнение игроков</h3><p>Сравнение статистики за выбранный период и с учётом фильтра позиции</p></div></div>
+     <div className="rating-compare-selects"><label><span>Первый игрок</span><select value={compareA} onChange={e=>setCompareA(e.target.value)}><option value="">Выберите игрока</option>{items.map(x=><option key={x.p.id} value={String(x.p.id)}>{x.p.name}</option>)}</select></label><label><span>Второй игрок</span><select value={compareB} onChange={e=>setCompareB(e.target.value)}><option value="">Выберите игрока</option>{items.map(x=><option key={x.p.id} value={String(x.p.id)}>{x.p.name}</option>)}</select></label></div>
+     {selectedA&&selectedB?<div className="rating-compare-table"><div className="rating-compare-header"><b>{selectedA.p.name}</b><span>Показатель</span><b>{selectedB.p.name}</b></div>{compareMetrics.map(([label,key])=><div className="rating-compare-row" key={key}><strong>{compareLabel(selectedA,key)}</strong><span>{label}</span><strong>{compareLabel(selectedB,key)}</strong></div>)}</div>:<p className="rating-compare-hint">Выберите двух игроков, чтобы увидеть сравнение.</p>}
+    </div>
   </section>
 }
+
 function PlayerAuthInfoModal({engine,userId,onClose}:{engine:any;userId:string;onClose:()=>void}){
  const [info,setInfo]=useState<any>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  useEffect(()=>{let live=true;(async()=>{const r=await engine?.sb?.rpc('get_admin_user_auth_details',{p_user_id:userId});if(r?.error)throw r.error;if(live){setInfo(r?.data?.[0]||null);setLoading(false);}})().catch(e=>{if(live){setError(e.message||'Не удалось загрузить данные');setLoading(false);}});return()=>{live=false}},[engine,userId]);
