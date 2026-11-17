@@ -669,20 +669,35 @@ export default function App(){
 }
 
 function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[];dayPlayers:any[];games:any[];onOpen:(id:number)=>void;ready:boolean}){
+ const [query,setQuery]=useState(''),[fromDate,setFromDate]=useState(''),[toDate,setToDate]=useState('');
+ const ordered=[...days].sort((a,b)=>String(b.game_date||'').localeCompare(String(a.game_date||'')));
+ const visible=ordered.filter(d=>{
+  const haystack=[d.game_date,d.place,d.game_time,...teams.filter(t=>String(t.game_day_id)===String(d.id)).map(t=>t.name)].join(' ').toLocaleLowerCase('ru-RU');
+  return (!query||haystack.includes(query.trim().toLocaleLowerCase('ru-RU')))&&(!fromDate||String(d.game_date)>=fromDate)&&(!toDate||String(d.game_date)<=toDate);
+ });
  return <section className="page">
    <div className="hero hero-public"><div className="hero-inner">
      <h1 className="hero-main-title" data-text="БУДНИЧНЫЙ ФУТБОЛ"><span>БУДНИЧНЫЙ</span><span>ФУТБОЛ</span></h1>
      <p className="hero-tagline">Не важно, какой уровень. Главное — чтобы соперник был хуже.</p>
    </div></div>
-   {!ready?<div className="loading">Загружаем данные…</div>:<div className="day-grid">{days.map(d=>{
-      const ts=teams.filter(t=>t.game_day_id===d.id),ps=dayPlayers.filter(p=>p.game_day_id===d.id),gs=games.filter(g=>g.game_day_id===d.id);
-      return <article className="day-card-new" key={d.id} onClick={()=>onOpen(d.id)}>
+   {!ready?<div className="loading">Загружаем данные…</div>:<>
+    <div className="day-archive-tools">
+     <label><span>Поиск по дате, месту или команде</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Например, Царицыно или Пунктуальные"/></label>
+     <label><span>С даты</span><input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}/></label>
+     <label><span>По дату</span><input type="date" value={toDate} onChange={e=>setToDate(e.target.value)}/></label>
+     <button type="button" onClick={()=>{setQuery('');setFromDate('');setToDate('');}}>Сбросить</button>
+    </div>
+    <div className="day-archive-caption">Найдено игровых дней: <b>{visible.length}</b> из {days.length}</div>
+    {visible.length?<div className="day-grid">{visible.map(d=>{
+      const ts=teams.filter(t=>String(t.game_day_id)===String(d.id)),ps=dayPlayers.filter(p=>String(p.game_day_id)===String(d.id)),gs=games.filter(g=>String(g.game_day_id)===String(d.id));
+      return <article className="day-card-new" key={d.id} onClick={()=>onOpen(Number(d.id))}>
         <div className="day-card-top"><div><span className="day-kicker">{dayName(d.game_date)}</span><h3>{fmtDate(d.game_date)} <em>·</em> {d.place||'Без места'}</h3><span className="muted">{d.game_time||'Время не указано'} · {ts.length} команд</span></div>
         {d.image_url?<img src={d.image_url} alt="Состав"/>:<div className="thumb-empty"><ImageIcon/></div>}</div>
         <div className="team-list">{ts.map(t=><span key={t.id} style={{'--team':t.color} as any}><i/> {t.name}</span>)}</div>
         <div className="day-card-bottom"><span><Users size={15}/> {ps.length} участников</span><span><Trophy size={15}/> {gs.length} игр</span><ChevronRight size={18}/></div>
       </article>
-   })}</div>}
+    })}</div>:<div className="rating-empty-state">По заданным условиям игровые дни не найдены.</div>}
+   </>}
  </section>
 }
 
