@@ -27,7 +27,7 @@ const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d
 const isOwnerPlayer=(player:any)=>String(player?.id)==='7'||['сергеев сергей','сергей сергеев'].includes(String(player?.name||'').trim().toLocaleLowerCase('ru-RU'));
 const DEBUFF_START_DATE='2026-11-01';
 const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=localDateKey())=>{
- const dates=Array.from(new Set(approvedRows.filter(row=>row?.status==='approved'&&row?.game_day_id!==null&&row?.game_day_id!==undefined).map(row=>{
+ const dates=Array.from(new Set(approvedRows.filter(row=>row?.game_day_id!==null&&row?.game_day_id!==undefined).map(row=>{
   const day=days.find((item:any)=>String(item.id)===String(row.game_day_id));
   const date=String(day?.game_date||'').slice(0,10);
   return date&&date<=today&&games.some((game:any)=>String(game.game_day_id)===String(row.game_day_id))?date:'';
@@ -67,7 +67,6 @@ export default function App(){
   const [teams,setTeams]=useState<any[]>([]);
   const [games,setGames]=useState<any[]>([]);
   const [dayPlayers,setDayPlayers]=useState<any[]>([]);
-  const [attendanceRows,setAttendanceRows]=useState<any[]>([]);
   const [session,setSession]=useState<any>(null);
   const [adminVerified,setAdminVerified]=useState(false);
   const [adminView,setAdminView]=useState(true);
@@ -127,21 +126,19 @@ export default function App(){
     setPlayers(loadedPlayers); setDays([...(state?.days||w.days||[])]); setTeams([...(state?.teams||w.teams||[])]); setGames([...(state?.games||w.games||[])]); setDayPlayers([...(state?.dayPlayers||w.dayPlayers||[])]);
     setIcons({...((w.__leagueIcons||{}) as Record<string,string>)});
     try{
-      const attendanceResult=await w.sb?.from('game_player_stats').select('player_id,game_day_id,status').eq('status','approved');
-      if(!attendanceResult?.error){
-        const approvedAttendance=attendanceResult?.data||[];setAttendanceRows(approvedAttendance);
-        for(const player of loadedPlayers){
-          if(!player.debuff_enabled)continue;
-          const effects=getAttendanceEffects(approvedAttendance.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
-          const currentAmount=Number(player.debuff_amount)||0;
-          if(Math.abs(effects.totalDebuff-currentAmount)>0.001){
-            const saved=await w.sb?.from('players').update({debuff_amount:effects.totalDebuff}).eq('id',player.id).eq('debuff_enabled',true);
-            if(!saved?.error)player.debuff_amount=effects.totalDebuff;
-          }
+      // Use the same canonical roster source as the displayed game-day count.
+      const attendanceDays=state?.dayPlayers||w.dayPlayers||[];
+      for(const player of loadedPlayers){
+        if(!player.debuff_enabled)continue;
+        const effects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
+        const currentAmount=Number(player.debuff_amount)||0;
+        if(Math.abs(effects.totalDebuff-currentAmount)>0.001){
+          const saved=await w.sb?.from('players').update({debuff_amount:effects.totalDebuff}).eq('id',player.id).eq('debuff_enabled',true);
+          if(!saved?.error)player.debuff_amount=effects.totalDebuff;
         }
-        setPlayers([...loadedPlayers]);
-      }else console.warn('Не удалось загрузить подтверждённые посещения:',attendanceResult.error);
-    }catch(error){console.warn('Не удалось загрузить подтверждённые посещения:',error);}
+      }
+      setPlayers([...loadedPlayers]);
+    }catch(error){console.warn('Не удалось обновить эффекты посещаемости:',error);}
     try{const badgeResult=await w.sb?.rpc('get_player_account_badges');if(!badgeResult?.error)setPlayerAccountBadges(badgeResult?.data||[]);else console.warn('Не удалось загрузить отметки аккаунтов игроков:',badgeResult.error);}catch(error){console.warn('Не удалось загрузить отметки аккаунтов игроков:',error);}
     try{
       const current=(await w.sb?.auth.getSession())?.data?.session||null;
@@ -577,7 +574,7 @@ export default function App(){
     if(!adminVerified)throw new Error('Переключатель доступен только администратору.');
     const w=getEngine();if(!w?.sb)throw new Error('Нет подключения к базе данных.');
     const player=players.find((item:any)=>String(item.id)===String(playerId));if(!player)throw new Error('Игрок не найден.');
-    const effects=getAttendanceEffects(attendanceRows.filter((row:any)=>String(row.player_id)===String(playerId)),days,games);
+    const effects=getAttendanceEffects(dayPlayers.filter((row:any)=>String(row.player_id)===String(playerId)),days,games);
     const nextAmount=enabled?effects.totalDebuff:0;
     if(enabled&&nextAmount<=0)throw new Error('Игрок пока не попадает под условия дебаффа.');
     const result=await w.sb.from('players').update({debuff_enabled:enabled,debuff_amount:nextAmount}).eq('id',playerId).select().single();
@@ -619,13 +616,13 @@ export default function App(){
     const entries=dayPlayers.filter((x:any)=>String(x.player_id)===String(p.id));
     // Count distinct played dates, not match count or duplicate stat rows.
     const playedDays=new Set(entries.map((x:any)=>String(x.game_day_id))).size;
-    const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(p.id)),days,games);
+    const effects=getAttendanceEffects(dayPlayers.filter((x:any)=>String(x.player_id)===String(p.id)),days,games);
     const baseRating=Number(totals?.rating),base=Number.isFinite(baseRating)?baseRating:5;
     const absenceDebuff=p.debuff_enabled?Number(p.debuff_amount)||effects.totalDebuff:0;
     const adjustedRating=base+effects.loyaltyBonus-absenceDebuff;
     const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays,baseRating:base,loyaltyBonus:effects.loyaltyBonus,absenceDebuff,absenceDays:effects.absenceDays,candidateDebuff:effects.candidateDebuff,streakDays:effects.streakDays,rating:Number((isOwnerPlayer(p)?Math.max(7,adjustedRating):adjustedRating).toFixed(2))};
     return {p,s};
-  }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,attendanceRows,games,teams,days,ready]);
+  }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,games,teams,days,ready]);
 
   return <div className="app" style={legacyBackground ? {backgroundImage: legacyBackground} : undefined}>
     <iframe ref={frame} onLoad={onLoad} className={dayModal!==null ? "engine editor-visible" : "engine"} title="data-engine" srcDoc={legacyHtml}/>
@@ -655,7 +652,7 @@ export default function App(){
     {newPlayerOpen && <PlayerModal onClose={()=>setNewPlayerOpen(false)} onSave={addPlayer}/>}
     {newDayOpen && <CreateGameDayModal engine={getEngine()} onClose={()=>setNewDayOpen(false)} onSaved={async(createdDay)=>{setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);setTab('home');await refresh();setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);}}/>}
     {editingPlayer && <PlayerModal player={editingPlayer} onClose={()=>setEditingPlayer(null)} onSave={updatePlayer}/>}
-    {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} attendanceRows={attendanceRows} games={games} icons={icons} engine={getEngine()} isAdmin={showAdminView} onToggleDebuff={togglePlayerDebuff} onClose={()=>setPlayerProfile(null)}/>}
+    {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} games={games} icons={icons} engine={getEngine()} isAdmin={showAdminView} onToggleDebuff={togglePlayerDebuff} onClose={()=>setPlayerProfile(null)}/>}
     {dayModal!==null && <div className="legacy-modal-shell"><button className="shell-close" onClick={closeLegacyModal} aria-label="Закрыть окно"><X/></button></div>}
     {quickEntryOpen && session && <QuickEntryModal players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={()=>setQuickEntryOpen(false)} onSaved={async()=>{await refresh();}}/>}
     {editDayId!==null && <EditDayModal dayId={editDayId} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={closeEditModal} onSaved={async()=>{setEditDayId(null);await refresh();}}/>}
@@ -1374,7 +1371,7 @@ function LoyaltyProgress({totalDays,absenceDebuff=0,absenceDays=0}:{totalDays:nu
   </div>;
 }
 
-function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,icons,onClose,engine,isAdmin,onToggleDebuff}:{player:any;days:any[];teams:any[];dayPlayers:any[];attendanceRows:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any;isAdmin:boolean;onToggleDebuff:(playerId:number,enabled:boolean)=>Promise<any>}){
+function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,engine,isAdmin,onToggleDebuff}:{player:any;days:any[];teams:any[];dayPlayers:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any;isAdmin:boolean;onToggleDebuff:(playerId:number,enabled:boolean)=>Promise<any>}){
   const [debuffBusy,setDebuffBusy]=useState(false),[debuffError,setDebuffError]=useState('');
   const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
@@ -1397,7 +1394,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,i
     const rawRating=Number(getEngine()?.dayRatingForEntry?.(x)); const rating=Number.isFinite(rawRating)?rawRating:(player.is_goalkeeper?5.5:5);
     return {x,d,t,r,rating};
   }).sort((a,b)=>(b.d?.game_date||'').localeCompare(a.d?.game_date||''));
-  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const absenceDebuff=player.debuff_enabled?Number(player.debuff_amount)||effects.totalDebuff:0; const adjustedOverall=baseOverall+effects.loyaltyBonus-absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
+  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(dayPlayers.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const absenceDebuff=player.debuff_enabled?Number(player.debuff_amount)||effects.totalDebuff:0; const adjustedOverall=baseOverall+effects.loyaltyBonus-absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
   return <div className="modal-backdrop profile-backdrop">
     <div className="modal-card profile-card">
       <button className="modal-x" onClick={onClose} aria-label="Закрыть"><X/></button>
