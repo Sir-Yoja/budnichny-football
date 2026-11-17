@@ -1427,6 +1427,12 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
     const rawRating=Number(getEngine()?.dayRatingForEntry?.(x)); const rating=Number.isFinite(rawRating)?rawRating:(player.is_goalkeeper?5.5:5);
     return {x,d,t,r,rating};
   }).sort((a,b)=>(b.d?.game_date||'').localeCompare(a.d?.game_date||''));
+  const buffMilestones=(()=>{
+    const dates=Array.from(new Set(entries.map(x=>days.find((d:any)=>String(d.id)===String(x.game_day_id))).filter((d:any)=>d&&String(d.game_date)>=DEBUFF_START_DATE&&String(d.game_date)<=localDateKey()&&games.some((g:any)=>String(g.game_day_id)===String(d.id))).map((d:any)=>String(d.game_date)))).sort();
+    const distance=(a:string,b:string)=>Math.floor((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);
+    let streak=0,last='';
+    return dates.flatMap(date=>{if(last&&distance(last,date)>=8)streak=0;streak+=1;last=date;return streak%10===0?[{date,streak,bonus:Number((Math.floor(streak/10)*0.02).toFixed(2))}]:[];}).reverse();
+  })();
   const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(dayPlayers.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const absenceDebuff=player.debuff_enabled?Number(player.debuff_amount)||effects.totalDebuff:0; const adjustedOverall=baseOverall+effects.loyaltyBonus-absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
   return <div className="modal-backdrop profile-backdrop">
     <div className="modal-card profile-card">
@@ -1456,7 +1462,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
       <div className="profile-effect-history">
        <div className="profile-section-title"><div><div className="eyebrow">ЭФФЕКТЫ РЕЙТИНГА</div><h3>История бафов и дебаффов</h3></div></div>
        <div className="profile-effect-columns">
-        <div><strong className="profile-effect-heading buff">Бафы за посещаемость</strong><p>Бонус начисляется за каждые 10 игровых дней серии. Текущая серия: {effects.streakDays} дней · бонус +{effects.loyaltyBonus.toFixed(2)}.</p><div className="profile-effect-note">История бафов рассчитывается по сохранённым игровым дням; отдельные события до включения журнала не восстанавливаются.</div></div>
+        <div><strong className="profile-effect-heading buff">Бафы за посещаемость</strong><p>Бонус начисляется за каждые 10 игровых дней серии. Текущая серия: {effects.streakDays} дней · бонус +{effects.loyaltyBonus.toFixed(2)}.</p>{buffMilestones.length?<ul>{buffMilestones.map((event:any)=><li key={event.date}><span>Достигнуто {event.streak} игровых дней подряд</span><b>+{event.bonus.toFixed(2)}</b><small>{fmtDate(event.date)}</small></li>)}</ul>:<div className="profile-effect-note">Пока нет зафиксированных рубежей в 10 игровых дней.</div>}<div className="profile-effect-note">История рассчитывается по сохранённым игровым дням начиная с 1 ноября 2026 года.</div></div>
         <div><strong className="profile-effect-heading debuff">События дебаффа</strong>
          {effectEvents.length?<ul>{effectEvents.map(event=><li key={event.id}><span>{event.effect_type==='debuff_enabled'?'Дебафф включён':event.effect_type==='debuff_auto_cleared'?'Автоматически снят после возвращения':'Дебафф выключен'}</span><b>{event.effect_type==='debuff_enabled'?'−':''}{Number(event.amount||0).toFixed(2)}</b><small>{new Date(event.created_at).toLocaleString('ru-RU')}</small></li>)}</ul>:<div className="profile-effect-note">Событий пока нет. Журнал ведётся с момента включения истории.</div>}
         </div>
