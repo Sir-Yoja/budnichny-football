@@ -70,6 +70,8 @@ export default function App(){
   const [attendanceRows,setAttendanceRows]=useState<any[]>([]);
   const [session,setSession]=useState<any>(null);
   const [adminVerified,setAdminVerified]=useState(false);
+  const [adminView,setAdminView]=useState(true);
+  const showAdminView=adminVerified&&adminView;
   const [ready,setReady]=useState(false);
   const [loginOpen,setLoginOpen]=useState(false);
   const [editingPlayer,setEditingPlayer]=useState<any|null>(null);
@@ -566,9 +568,9 @@ export default function App(){
     if(result.error||result.data?.error)throw new Error(result.data?.error||result.error?.message||'Не удалось подтвердить код.');
     const check=await w.sb!.rpc('is_site_admin');
     if(check.error||check.data!==true)throw new Error('Код принят, но база не подтвердила права администратора. Обнови страницу и попробуй снова.');
-    setAdminVerified(true);setLoginOpen(false);await refresh();
+    setAdminVerified(true);setAdminView(true);setLoginOpen(false);await refresh();
   };
-  const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);};
+  const logout=async()=>{await getEngine()?.sb?.auth.signOut();setSession(null);setAdminVerified(false);setAdminView(true);};
   const addPlayer=async(name:string,position:string='',gk:boolean=false)=>{const w=getEngine(); const r=await w?.sb?.from('players').insert({name,position:position||null,is_goalkeeper:gk}).select().single(); if(r?.error)throw r.error; await refresh();setNewPlayerOpen(false);};
   const updatePlayer=async(p:any)=>{const w=getEngine();const r=await w?.sb?.from('players').update({name:p.name,position:p.position||null,is_goalkeeper:!!p.is_goalkeeper}).eq('id',p.id).select().single();if(r?.error)throw r.error;await refresh();setEditingPlayer(null);};
   const togglePlayerDebuff=async(playerId:number,enabled:boolean)=>{
@@ -633,23 +635,27 @@ export default function App(){
         <button className={tab==='home'?'active':''} onClick={()=>{setTab('home');setMenu(false)}}>Игровые дни</button>
         <button className={tab==='rating'?'active':''} onClick={()=>{setTab('rating');setMenu(false)}}>Рейтинг</button>
          <button className={tab==='account'?'active':''} onClick={()=>{setTab('account');setMenu(false)}}><CircleUserRound size={16}/> {session?'Кабинет':'Войти'}</button>
-        <button className={tab==='admin'?'active':''} onClick={()=>{setTab('admin');setMenu(false)}}><Shield size={16}/> Админка</button>
+        {showAdminView&&<button className={tab==='admin'?'active':''} onClick={()=>{setTab('admin');setMenu(false)}}><Shield size={16}/> Админка</button>}
       </nav>
+      {adminVerified&&<div className="view-mode-switch" role="group" aria-label="Режим просмотра">
+        <button type="button" className={showAdminView?'active':''} aria-pressed={showAdminView} onClick={()=>setAdminView(true)}><Shield size={13}/> Админ</button>
+        <button type="button" className={!showAdminView?'active user-active':''} aria-pressed={!showAdminView} onClick={()=>{setAdminView(false);setMenu(false);if(tab==='admin')setTab('home');}}><UserRound size={13}/> Пользователь</button>
+      </div>}
       <button className="mobile-menu" onClick={()=>setMenu(v=>!v)}><Menu/></button>
     </header>
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={adminVerified} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
-      {tab==='account' && <AccountPage session={session} adminVerified={adminVerified} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
-      {tab==='admin' && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
+      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='account' && <AccountPage session={session} adminVerified={showAdminView} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
+      {tab==='admin' && showAdminView && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
     </main>
 
     {loginOpen && <LoginModal onClose={()=>setLoginOpen(false)} onLogin={login} onVerify={verifyAdminCode}/>} 
     {newPlayerOpen && <PlayerModal onClose={()=>setNewPlayerOpen(false)} onSave={addPlayer}/>}
     {newDayOpen && <CreateGameDayModal engine={getEngine()} onClose={()=>setNewDayOpen(false)} onSaved={async(createdDay)=>{setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);setTab('home');await refresh();setDays(prev=>[createdDay,...prev.filter(d=>String(d.id)!==String(createdDay.id))]);}}/>}
     {editingPlayer && <PlayerModal player={editingPlayer} onClose={()=>setEditingPlayer(null)} onSave={updatePlayer}/>}
-    {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} attendanceRows={attendanceRows} games={games} icons={icons} engine={getEngine()} isAdmin={adminVerified} onToggleDebuff={togglePlayerDebuff} onClose={()=>setPlayerProfile(null)}/>}
+    {playerProfile && <PlayerProfileModal player={playerProfile} days={days} teams={teams} dayPlayers={dayPlayers} attendanceRows={attendanceRows} games={games} icons={icons} engine={getEngine()} isAdmin={showAdminView} onToggleDebuff={togglePlayerDebuff} onClose={()=>setPlayerProfile(null)}/>}
     {dayModal!==null && <div className="legacy-modal-shell"><button className="shell-close" onClick={closeLegacyModal} aria-label="Закрыть окно"><X/></button></div>}
     {quickEntryOpen && session && <QuickEntryModal players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={()=>setQuickEntryOpen(false)} onSaved={async()=>{await refresh();}}/>}
     {editDayId!==null && <EditDayModal dayId={editDayId} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onClose={closeEditModal} onSaved={async()=>{setEditDayId(null);await refresh();}}/>}
