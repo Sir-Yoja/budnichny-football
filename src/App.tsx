@@ -26,8 +26,8 @@ const dayName=(v:string)=>{ if(!v)return ''; const d=new Date(`${v}T00:00:00`); 
 const localDateKey=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const isOwnerPlayer=(player:any)=>String(player?.id)==='7'||['сергеев сергей','сергей сергеев'].includes(String(player?.name||'').trim().toLocaleLowerCase('ru-RU'));
 const DEBUFF_START_DATE='2026-11-01';
-const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=localDateKey())=>{
- const dates=Array.from(new Set(approvedRows.filter(row=>row?.game_day_id!==null&&row?.game_day_id!==undefined).map(row=>{
+const getAttendanceEffects=(rosterRows:any[],days:any[],games:any[],today=localDateKey())=>{
+ const dates=Array.from(new Set(rosterRows.filter(row=>row?.game_day_id!==null&&row?.game_day_id!==undefined).map(row=>{
   const day=days.find((item:any)=>String(item.id)===String(row.game_day_id));
   const date=String(day?.game_date||'').slice(0,10);
   return date&&date<=today&&games.some((game:any)=>String(game.game_day_id)===String(row.game_day_id))?date:'';
