@@ -1111,3 +1111,15 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .account-stat-history-item.account-notification-unread{border-color:rgba(224,180,86,.58);background:rgba(224,180,86,.055);cursor:pointer;box-shadow:inset 3px 0 0 rgba(224,180,86,.8)}
 .account-stat-history-item{cursor:pointer}
 .account-notification-new{color:#e5bd69;font-size:10px;letter-spacing:.08em;font-weight:900}
+
+
+/* Player profile effect timeline */
+.profile-effect-history{margin-top:26px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1)}
+.profile-effect-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.profile-effect-columns>div{min-width:0;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(255,255,255,.025)}
+.profile-effect-heading{display:block;margin-bottom:8px;font-size:14px}.profile-effect-heading.buff{color:#e4b65d}.profile-effect-heading.debuff{color:#df9484}
+.profile-effect-columns p,.profile-effect-note{font-size:12px;line-height:1.5;color:#9eacb7;margin:6px 0 10px}
+.profile-effect-columns ul{list-style:none;padding:0;margin:10px 0;display:grid;gap:8px}
+.profile-effect-columns li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.07);font-size:12px;color:#dce4e9}
+.profile-effect-columns li b{color:#e4b65d;font-size:13px}.profile-effect-columns li small{grid-column:1/-1;color:#82939f;font-size:11px}
+@media(max-width:650px){.profile-effect-columns{grid-template-columns:1fr}}
