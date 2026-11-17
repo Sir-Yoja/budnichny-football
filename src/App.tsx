@@ -91,7 +91,6 @@ export default function App(){
   const [ratingSort,setRatingSort]=useState('rating');
   const [quickEntryOpen,setQuickEntryOpen]=useState(false);
   const [navHiddenOnScroll,setNavHiddenOnScroll]=useState(false);
-  const lastScrollY=useRef(0);
 
   useEffect(()=>{
     if(dayModal!==null){
@@ -101,7 +100,7 @@ export default function App(){
     let lastY=window.scrollY||document.documentElement.scrollTop||0;
     const handleScroll=(event?:Event)=>{
       const target=event?.target as HTMLElement|null;
-      const targetY=target && target!==document && typeof target.scrollTop==='number'
+      const targetY=target && target!==(document as unknown as HTMLElement) && typeof target.scrollTop==='number'
         ? target.scrollTop
         : (window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0);
       const delta=targetY-lastY;
@@ -238,7 +237,7 @@ export default function App(){
                 const id=select.value;
                 if(!id)return;
                 const target=checks.find(x=>String(x.dataset.player)===id);
-                if(target){target.checked=true;target.dispatchEvent(new w.Event('change',{bubbles:true}));}
+                if(target){target.checked=true;target.dispatchEvent(new (w as any).Event('change',{bubbles:true}));}
                 refreshPickers();
               };
               picker.appendChild(label);
@@ -254,7 +253,7 @@ export default function App(){
                 remove.type='button';remove.textContent='×';
                 remove.title='Убрать из команды';
                 remove.style.cssText='border:0;background:transparent;color:#f0a3a3;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;';
-                remove.onclick=()=>{input.checked=false;input.dispatchEvent(new w.Event('change',{bubbles:true}));refreshPickers();};
+                remove.onclick=()=>{input.checked=false;input.dispatchEvent(new (w as any).Event('change',{bubbles:true}));refreshPickers();};
                 item.append(text,remove);selected.appendChild(item);
               });
               picker.appendChild(selected);
