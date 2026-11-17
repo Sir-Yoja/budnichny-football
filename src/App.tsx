@@ -652,7 +652,7 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile} days={days} dayPlayers={dayPlayers} games={games}/>}
+      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile} days={days} dayPlayers={dayPlayers} games={games} engine={getEngine()}/>}
       {tab==='account' && <AccountPage session={session} adminVerified={showAdminView} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
       {tab==='admin' && showAdminView && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
     </main>
@@ -701,7 +701,7 @@ function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[]
  </section>
 }
 
-function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayPlayers,games}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void;days:any[];dayPlayers:any[];games:any[]}){
+function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayPlayers,games,engine}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void;days:any[];dayPlayers:any[];games:any[];engine:any}){
   const [positionFilter,setPositionFilter]=useState('all'),[fromDate,setFromDate]=useState(''),[toDate,setToDate]=useState('');
   const [compareA,setCompareA]=useState(''),[compareB,setCompareB]=useState('');
   const hasPeriod=!!(fromDate||toDate);
