@@ -1404,6 +1404,8 @@ function LoyaltyProgress({totalDays,absenceDebuff=0,absenceDays=0}:{totalDays:nu
 
 function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,engine,isAdmin,onToggleDebuff}:{player:any;days:any[];teams:any[];dayPlayers:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any;isAdmin:boolean;onToggleDebuff:(playerId:number,enabled:boolean)=>Promise<any>}){
   const [debuffBusy,setDebuffBusy]=useState(false),[debuffError,setDebuffError]=useState('');
+  const [effectEvents,setEffectEvents]=useState<any[]>([]);
+  useEffect(()=>{let live=true;(async()=>{const result=await engine?.sb?.from('player_effect_events').select('id,effect_type,amount,source,created_at,details').eq('player_id',player.id).order('created_at',{ascending:false}).limit(50);if(result?.error)throw result.error;if(live)setEffectEvents(result?.data||[]);})().catch(error=>console.warn('Не удалось загрузить историю дебаффов:',error));return()=>{live=false;};},[engine,player.id]);
   const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>engine;
@@ -1451,6 +1453,15 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
       </div>
       <div className="profile-section-title"><div><div className="eyebrow">ИСТОРИЯ</div><h3>Выступления</h3></div></div>
       {history.length?<div className="profile-history-wrap"><table className="stats-table history-table profile-history"><thead><tr><th>Дата</th><th>Команда</th><th>Результат</th><th>Г</th><th>П</th><th>Г+П</th><th>С</th><th>Пр</th><th>АГ</th><th>Рейтинг дня</th></tr></thead><tbody>{history.map(h=><tr key={h.x.id||`${h.x.game_day_id}-${h.x.player_id}`}><td>{h.d?fmtDate(h.d.game_date):'—'}</td><td><span className="team-dot" style={{'--team':h.t?.color||'#fff'} as any}></span>{h.t?.name||'—'}</td><td><span className="result-line"><span>🏆 {h.r.wins}</span><span>➖ {h.r.draws}</span><span>✕ {h.r.losses}</span></span></td><td>{+h.x.goals||0}</td><td>{+h.x.assists||0}</td><td><b>{(+h.x.goals||0)+(+h.x.assists||0)}</b></td><td>{+h.x.saves||0}</td><td>{+h.x.conceded||0}</td><td>{+h.x.own_goals||0}</td><td><b className="profile-day-rating">{h.rating.toFixed(1)}</b></td></tr>)}</tbody></table></div>:<div className="profile-empty">Статистика по игровым дням пока не заполнена.</div>}
+      <div className="profile-effect-history">
+       <div className="profile-section-title"><div><div className="eyebrow">ЭФФЕКТЫ РЕЙТИНГА</div><h3>История бафов и дебаффов</h3></div></div>
+       <div className="profile-effect-columns">
+        <div><strong className="profile-effect-heading buff">Бафы за посещаемость</strong><p>Бонус начисляется за каждые 10 игровых дней серии. Текущая серия: {effects.streakDays} дней · бонус +{effects.loyaltyBonus.toFixed(2)}.</p><div className="profile-effect-note">История бафов рассчитывается по сохранённым игровым дням; отдельные события до включения журнала не восстанавливаются.</div></div>
+        <div><strong className="profile-effect-heading debuff">События дебаффа</strong>
+         {effectEvents.length?<ul>{effectEvents.map(event=><li key={event.id}><span>{event.effect_type==='debuff_enabled'?'Дебафф включён':event.effect_type==='debuff_auto_cleared'?'Автоматически снят после возвращения':'Дебафф выключен'}</span><b>{event.effect_type==='debuff_enabled'?'−':''}{Number(event.amount||0).toFixed(2)}</b><small>{new Date(event.created_at).toLocaleString('ru-RU')}</small></li>)}</ul>:<div className="profile-effect-note">Событий пока нет. Журнал ведётся с момента включения истории.</div>}
+        </div>
+       </div>
+      </div>
     </div>
   </div>;
 }
