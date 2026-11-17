@@ -33,6 +33,11 @@ const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=loca
   return date&&date<=today&&games.some((game:any)=>String(game.game_day_id)===String(row.game_day_id))?date:'';
  }).filter(Boolean))).sort();
  const dayDistance=(from:string,to:string)=>Math.floor((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);
+ const gapPenalty=(gapDays:number)=>{
+  let penalty=0;
+  for(let threshold=8;threshold<=gapDays;threshold+=8)penalty+=gapDays<=threshold+3?0.02:0.04;
+  return Number(penalty.toFixed(2));
+ };
  const previousDates=dates.filter(date=>date<DEBUFF_START_DATE),activeDates=dates.filter(date=>date>=DEBUFF_START_DATE);
  let streakDays=previousDates.length,lastAttendanceDate=previousDates[previousDates.length-1]||'';
  if(activeDates.length){
@@ -40,10 +45,13 @@ const getAttendanceEffects=(approvedRows:any[],days:any[],games:any[],today=loca
   lastAttendanceDate='';
   activeDates.forEach(date=>{if(lastAttendanceDate&&dayDistance(lastAttendanceDate,date)>=8)streakDays=0;streakDays+=1;lastAttendanceDate=date;});
  }
+ let historicalDebuff=0,previousDate=DEBUFF_START_DATE;
+ activeDates.forEach(date=>{const gap=dayDistance(previousDate,date);if(gap>=8)historicalDebuff+=gapPenalty(gap);previousDate=date;});
  const absenceAnchor=lastAttendanceDate>=DEBUFF_START_DATE?lastAttendanceDate:DEBUFF_START_DATE;
  const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
  const candidateDebuff=dates.length>0&&absenceDays>=8?Number((Math.floor(absenceDays/8)*0.04).toFixed(2)):0;
- return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),candidateDebuff};
+ const totalDebuff=Number((historicalDebuff+candidateDebuff).toFixed(2));
+ return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),candidateDebuff,totalDebuff};
 };
 const adminTeamName=(team:any)=>{const colors:Record<string,string>={'Пунктуальные':'Белые','Сообразительные':'Тёмные','Красивые':'Красные','Стильные':'Жёлтые'};const name=team?.name||'Команда';return colors[name]?`${name} (${colors[name]})`:name;};
 const isNonNegativeInteger=(value:any)=>value!==''&&value!==null&&value!==undefined&&Number.isSafeInteger(Number(value))&&Number(value)>=0;
@@ -124,9 +132,9 @@ export default function App(){
           if(!player.debuff_enabled)continue;
           const effects=getAttendanceEffects(approvedAttendance.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
           const currentAmount=Number(player.debuff_amount)||0;
-          if(effects.candidateDebuff>currentAmount){
-            const saved=await w.sb?.from('players').update({debuff_amount:effects.candidateDebuff}).eq('id',player.id).eq('debuff_enabled',true);
-            if(!saved?.error)player.debuff_amount=effects.candidateDebuff;
+          if(Math.abs(effects.totalDebuff-currentAmount)>0.001){
+            const saved=await w.sb?.from('players').update({debuff_amount:effects.totalDebuff}).eq('id',player.id).eq('debuff_enabled',true);
+            if(!saved?.error)player.debuff_amount=effects.totalDebuff;
           }
         }
         setPlayers([...loadedPlayers]);
@@ -568,7 +576,7 @@ export default function App(){
     const w=getEngine();if(!w?.sb)throw new Error('Нет подключения к базе данных.');
     const player=players.find((item:any)=>String(item.id)===String(playerId));if(!player)throw new Error('Игрок не найден.');
     const effects=getAttendanceEffects(attendanceRows.filter((row:any)=>String(row.player_id)===String(playerId)),days,games);
-    const nextAmount=enabled?Math.max(Number(player.debuff_amount)||0,effects.candidateDebuff):0;
+    const nextAmount=enabled?effects.totalDebuff:0;
     if(enabled&&nextAmount<=0)throw new Error('Игрок пока не попадает под условия дебаффа.');
     const result=await w.sb.from('players').update({debuff_enabled:enabled,debuff_amount:nextAmount}).eq('id',playerId).select().single();
     if(result?.error)throw result.error;
@@ -611,7 +619,7 @@ export default function App(){
     const playedDays=new Set(entries.map((x:any)=>String(x.game_day_id))).size;
     const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(p.id)),days,games);
     const baseRating=Number(totals?.rating),base=Number.isFinite(baseRating)?baseRating:5;
-    const absenceDebuff=p.debuff_enabled?Math.max(Number(p.debuff_amount)||0,effects.candidateDebuff):0;
+    const absenceDebuff=p.debuff_enabled?Number(p.debuff_amount)||effects.totalDebuff:0;
     const adjustedRating=base+effects.loyaltyBonus-absenceDebuff;
     const s={...(totals||{goals:0,assists:0,gp:0,saves:0,conceded:0,ownGoals:0,rating:5}),days:playedDays,baseRating:base,loyaltyBonus:effects.loyaltyBonus,absenceDebuff,absenceDays:effects.absenceDays,candidateDebuff:effects.candidateDebuff,streakDays:effects.streakDays,rating:Number((isOwnerPlayer(p)?Math.max(7,adjustedRating):adjustedRating).toFixed(2))};
     return {p,s};
@@ -1381,7 +1389,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,attendanceRows,games,i
     const rawRating=Number(getEngine()?.dayRatingForEntry?.(x)); const rating=Number.isFinite(rawRating)?rawRating:(player.is_goalkeeper?5.5:5);
     return {x,d,t,r,rating};
   }).sort((a,b)=>(b.d?.game_date||'').localeCompare(a.d?.game_date||''));
-  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const absenceDebuff=player.debuff_enabled?Math.max(Number(player.debuff_amount)||0,effects.candidateDebuff):0; const adjustedOverall=baseOverall+effects.loyaltyBonus-absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
+  const savedOverall=Number(getEngine()?.playerTotals?.(player)?.rating); const baseOverall=Number.isFinite(savedOverall)?savedOverall:(history.length?history.reduce((s,x)=>s+x.rating,0)/history.length:(player.is_goalkeeper?5.5:5)); const effects=getAttendanceEffects(attendanceRows.filter((x:any)=>String(x.player_id)===String(player.id)),days,games); const absenceDebuff=player.debuff_enabled?Number(player.debuff_amount)||effects.totalDebuff:0; const adjustedOverall=baseOverall+effects.loyaltyBonus-absenceDebuff; const overall=Number((isOwnerPlayer(player)?Math.max(7,adjustedOverall):adjustedOverall).toFixed(2));
   return <div className="modal-backdrop profile-backdrop">
     <div className="modal-card profile-card">
       <button className="modal-x" onClick={onClose} aria-label="Закрыть"><X/></button>
