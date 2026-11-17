@@ -639,7 +639,7 @@ export default function App(){
       </nav>
       {adminVerified&&<div className="view-mode-switch" role="group" aria-label="Режим просмотра">
         <button type="button" className={showAdminView?'active':''} aria-pressed={showAdminView} onClick={()=>setAdminView(true)}><Shield size={13}/> Админ</button>
-        <button type="button" className={!showAdminView?'active user-active':''} aria-pressed={!showAdminView} onClick={()=>{setAdminView(false);setMenu(false);if(tab==='admin')setTab('home');}}><UserRound size={13}/> Пользователь</button>
+        <button type="button" className={!showAdminView?'active user-active':''} aria-pressed={!showAdminView} onClick={()=>{setAdminView(false);setMenu(false);if(tab==='admin')setTab('home');}}><CircleUserRound size={13}/> Пользователь</button>
       </div>}
       <button className="mobile-menu" onClick={()=>setMenu(v=>!v)}><Menu/></button>
     </header>
