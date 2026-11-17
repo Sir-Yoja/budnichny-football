@@ -1095,3 +1095,13 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .view-mode-switch button.user-active{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#f0f3f5;}
 @media(max-width:800px){.view-mode-switch{margin-left:auto;padding:3px;gap:2px}.view-mode-switch button{padding:7px 8px;font-size:10px;gap:4px}.mobile-menu{margin-left:8px;}}
 @media(max-width:390px){.view-mode-switch button{padding:6px 6px;font-size:9px}.view-mode-switch button svg{display:none;}}
+
+
+/* Searchable game-day archive */
+.day-archive-tools{display:grid;grid-template-columns:minmax(220px,2fr) repeat(2,minmax(150px,1fr)) auto;gap:12px;align-items:end;margin:22px 0 10px;padding:16px;border:1px solid var(--line,rgba(255,255,255,.1));border-radius:14px;background:rgba(8,17,25,.72)}
+.day-archive-tools label{display:grid;gap:7px;min-width:0}
+.day-archive-tools label span{font-size:12px;color:#aab8c3;font-weight:700}
+.day-archive-tools input{width:100%;min-width:0;box-sizing:border-box;min-height:42px;padding:9px 11px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:#0b151e;color:#edf2f5;font:inherit}
+.day-archive-tools button{min-height:42px;padding:9px 14px;border:1px solid rgba(255,255,255,.14);border-radius:9px;background:rgba(255,255,255,.05);color:#dce5eb;font:inherit;cursor:pointer}
+.day-archive-caption{margin:0 2px 14px;color:#91a2ae;font-size:13px}.day-archive-caption b{color:#e5bd69}
+@media(max-width:760px){.day-archive-tools{grid-template-columns:1fr 1fr}.day-archive-tools label:first-child{grid-column:1/-1}.day-archive-tools button{grid-column:1/-1}}
