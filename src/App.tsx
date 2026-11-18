@@ -118,8 +118,15 @@ export default function App(){
       const bg=w.document ? getComputedStyle(w.document.body).backgroundImage : '';
       if(bg && bg!=='none') setLegacyBackground(bg);
     }catch{}
-    try{ await w.loadPlayers?.(); await w.loadDays?.(); }
-    catch(e){ console.error(e); }
+    // These loaders read independent datasets; run them together so startup/refresh
+    // waits for the slower request only once instead of adding both network times.
+    const loadResults=await Promise.allSettled([
+      Promise.resolve().then(()=>w.loadPlayers?.()),
+      Promise.resolve().then(()=>w.loadDays?.()),
+    ]);
+    loadResults.forEach((result,index)=>{
+      if(result.status==='rejected')console.error(index===0?'Не удалось загрузить игроков:':'Не удалось загрузить игровые дни:',result.reason);
+    });
     try{ if(!w.__leagueIcons) w.renderPlayers?.(); }catch{}
     const state=w.getLeagueState?.();
     const loadedPlayers=[...(state?.players||w.players||[])];
@@ -127,9 +134,10 @@ export default function App(){
     setIcons({...((w.__leagueIcons||{}) as Record<string,string>)});
     try{
       // Use the same canonical roster source as the displayed game-day count.
+      // Each player's debuff update is independent, so process eligible players concurrently.
       const attendanceDays=state?.dayPlayers||w.dayPlayers||[];
-      for(const player of loadedPlayers){
-        if(!player.debuff_enabled)continue;
+      const attendancePlayers=loadedPlayers.filter((player:any)=>player.debuff_enabled);
+      await Promise.all(attendancePlayers.map(async(player:any)=>{
         const effects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
         // An active debuff is automatically cleared as soon as a new attended game day is recorded.
         // A player can only have been manually debuffed after reaching the absence threshold,
@@ -138,14 +146,15 @@ export default function App(){
           const cleared=await w.sb?.from('players').update({debuff_enabled:false,debuff_amount:0}).eq('id',player.id).eq('debuff_enabled',true);
           if(!cleared?.error){player.debuff_enabled=false;player.debuff_amount=0;}
           else console.warn('Не удалось автоматически снять дебафф:',cleared.error);
-          continue;
+          return;
         }
         const currentAmount=Number(player.debuff_amount)||0;
         if(Math.abs(effects.totalDebuff-currentAmount)>0.001){
           const saved=await w.sb?.from('players').update({debuff_amount:effects.totalDebuff}).eq('id',player.id).eq('debuff_enabled',true);
           if(!saved?.error)player.debuff_amount=effects.totalDebuff;
+          else console.warn('Не удалось обновить дебафф игрока:',player.id,saved.error);
         }
-      }
+      }));
       setPlayers([...loadedPlayers]);
     }catch(error){console.warn('Не удалось обновить эффекты посещаемости:',error);}
     try{const badgeResult=await w.sb?.rpc('get_player_account_badges');if(!badgeResult?.error)setPlayerAccountBadges(badgeResult?.data||[]);else console.warn('Не удалось загрузить отметки аккаунтов игроков:',badgeResult.error);}catch(error){console.warn('Не удалось загрузить отметки аккаунтов игроков:',error);}
