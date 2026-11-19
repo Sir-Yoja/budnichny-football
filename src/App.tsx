@@ -695,8 +695,10 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayP
   const scopedRows=useMemo(()=>{
     if(periodFilter==='all') return rows;
     const today=new Date();today.setHours(0,0,0,0);
-    const from=periodFilter==='custom'?(dateFrom||'0000-01-01'):new Date(today.getTime()-(periodFilter==='7'?6:29)*86400000).toISOString().slice(0,10);
-    const to=periodFilter==='custom'?(dateTo||'9999-12-31'):today.toISOString().slice(0,10);
+    const localKey=(value:Date)=>`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;
+    const periodStart=new Date(today);periodStart.setDate(periodStart.getDate()-(periodFilter==='7'?6:29));
+    const from=periodFilter==='custom'?(dateFrom||'0000-01-01'):localKey(periodStart);
+    const to=periodFilter==='custom'?(dateTo||'9999-12-31'):localKey(today);
     return rows.map(row=>{
       const entries=dayPlayers.filter((entry:any)=>String(entry.player_id)===String(row.p.id)).filter((entry:any)=>{
         const day=days.find((d:any)=>String(d.id)===String(entry.game_day_id));
