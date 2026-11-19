@@ -726,8 +726,8 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayP
     }
     return name;
   });
-  const confirmed=periodFilter==='all'?items.filter(x=>(Number(x.s.days)||0)>=3):items.filter(x=>(Number(x.s.days)||0)>0);
-  const preliminary=periodFilter==='all'?items.filter(x=>(Number(x.s.days)||0)>0&&(Number(x.s.days)||0)<3):[];
+  const confirmed=items.filter(x=>(Number(x.s.days)||0)>=3);
+  const preliminary=items.filter(x=>(Number(x.s.days)||0)>0&&(Number(x.s.days)||0)<3);
   const inactive=periodFilter==='all'?items.filter(x=>(Number(x.s.days)||0)===0):[];
   const filters=[
     ['name','Имя','player'],['days','Игровые дни','day'],['goals','Забил','goal'],['assists','Пас','pass'],['gp','Г+П','gp'],
