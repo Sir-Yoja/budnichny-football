@@ -51,7 +51,7 @@ const getAttendanceEffects=(rosterRows:any[],days:any[],games:any[],today=localD
  const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
  const candidateDebuff=dates.length>0&&absenceDays>=8?Number((Math.floor(absenceDays/8)*0.08).toFixed(2)):0;
  const totalDebuff=Number((historicalDebuff+candidateDebuff).toFixed(2));
- return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),candidateDebuff,totalDebuff};
+ return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.04).toFixed(2)),candidateDebuff,totalDebuff};
 };
 const adminTeamName=(team:any)=>{const colors:Record<string,string>={'Пунктуальные':'Белые','Сообразительные':'Тёмные','Красивые':'Красные','Стильные':'Жёлтые'};const name=team?.name||'Команда';return colors[name]?`${name} (${colors[name]})`:name;};
 const isNonNegativeInteger=(value:any)=>value!==''&&value!==null&&value!==undefined&&Number.isSafeInteger(Number(value))&&Number(value)>=0;
