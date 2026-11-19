@@ -687,7 +687,6 @@ function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[]
 }
 
 function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayPlayers,engine}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void;days:any[];dayPlayers:any[];engine:any}){
-  const [positionFilter,setPositionFilter]=useState('all');
   const [periodFilter,setPeriodFilter]=useState('all');
   const [dateFrom,setDateFrom]=useState('');
   const [dateTo,setDateTo]=useState('');
@@ -713,18 +712,7 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayP
       return {...row,s:{...row.s,days:unique.length,goals,assists,gp:goals+assists,saves:sum('saves'),conceded:sum('conceded'),ownGoals:sum('own_goals'),rating:Number(rating.toFixed(2)),loyaltyBonus:0,absenceDebuff:0}};
     });
   },[rows,periodFilter,dateFrom,dateTo,dayPlayers,days,engine]);
-  const positionMatches=(player:any)=>{
-    if(positionFilter==='all')return true;
-    if(positionFilter==='goalkeeper')return !!player.is_goalkeeper||/вратар|goalkeeper/i.test(player.position||'');
-    const value=String(player.position||'').toLocaleLowerCase('ru-RU');
-    if(positionFilter==='defender')return /защит|defend|бек|back/i.test(value);
-    if(positionFilter==='midfielder')return /полузащит|центр|опорн|атакующ|midfield/i.test(value);
-    if(positionFilter==='forward')return /напада|форвард|атак|forward|striker/i.test(value);
-    if(positionFilter==='other')return !player.is_goalkeeper&&!/вратар|goalkeeper|защит|defend|бек|back|полузащит|центр|опорн|атакующ|midfield|напада|форвард|forward|striker/i.test(value);
-    return true;
-  };
-  const filteredRows=scopedRows.filter(x=>positionMatches(x.p));
-  const items=[...filteredRows].sort((a,b)=>{
+  const items=[...scopedRows].sort((a,b)=>{
     const name=(a.p.name||'').localeCompare(b.p.name||'','ru',{sensitivity:'base'});
     if(sort==='name') return name;
     const get=(x:any)=>sort==='days'?x.s.days:sort==='goals'?x.s.goals:sort==='assists'?x.s.assists:sort==='gp'?x.s.gp:sort==='saves'?x.s.saves:sort==='conceded'?x.s.conceded:sort==='ownGoals'?x.s.ownGoals:x.s.rating;
@@ -768,10 +756,10 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayP
   </div>;
   return <section className="page rating-page">
     <div className="section-head rating-intro"><div><h2>Рейтинг игроков</h2><p>{periodFilter==='all'?'В основной рейтинг попадают игроки после 3 игровых дней. До этого рейтинг предварительный.':'За выбранный период рейтинг считается как средняя оценка за сыгранные дни; для подтверждения также нужно 3 игровых дня.'}</p></div></div>
-    <div className="rating-scope-controls" style={{display:'flex',flexWrap:'wrap',gap:10,alignItems:'center',margin:'0 0 16px'}}>
-      <label style={{display:'flex',gap:7,alignItems:'center'}}>Позиция <select value={positionFilter} onChange={e=>setPositionFilter(e.target.value)}><option value="all">Все игроки</option><option value="goalkeeper">Вратари</option><option value="defender">Защитники</option><option value="midfielder">Полузащитники</option><option value="forward">Нападающие</option><option value="other">Другие позиции</option></select></label>
-      <label style={{display:'flex',gap:7,alignItems:'center'}}>Период <select value={periodFilter} onChange={e=>setPeriodFilter(e.target.value)}><option value="all">Весь сезон</option><option value="7">Последние 7 дней</option><option value="30">Последние 30 дней</option><option value="custom">Выбрать даты</option></select></label>
-      {periodFilter==='custom'&&<><label style={{display:'flex',gap:6,alignItems:'center'}}>С <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></label><label style={{display:'flex',gap:6,alignItems:'center'}}>По <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></label></>}
+    <div className="rating-period-bar">
+      <label className="rating-period-label" htmlFor="rating-period">Период</label>
+      <div className="rating-period-select-wrap"><select id="rating-period" className="rating-period-select" value={periodFilter} onChange={e=>setPeriodFilter(e.target.value)}><option value="all">Весь сезон</option><option value="7">Последние 7 дней</option><option value="30">Последние 30 дней</option><option value="custom">Выбрать даты</option></select><span className="rating-period-chevron">⌄</span></div>
+      {periodFilter==='custom'&&<div className="rating-date-range"><label>С <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></label><label>По <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></label></div>}
     </div>
     <div className="rating-filters">{filters.map(([key,label,icon])=><button key={key} className={sort===key?'rating-filter active':'rating-filter'} onClick={()=>setSort(key)}><Icon name={icon} size={22}/><span>{label}</span></button>)}</div>
     <div className="rating-group-head"><div><h3>Подтверждённый рейтинг</h3><p>3 и более игровых дней · игроки ранжируются в основном зачёте</p></div><span className="rating-group-count">{confirmed.length} игроков</span></div>
