@@ -652,7 +652,7 @@ export default function App(){
 
     <main className="content">
       {tab==='home' && <Home days={days} teams={teams} dayPlayers={dayPlayers} games={games} onOpen={openDay} ready={ready}/>} 
-      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile}/>}
+      {tab==='rating' && <Rating rows={rating} icons={icons} playerBadges={playerAccountBadges} isAdmin={showAdminView} sort={ratingSort} setSort={setRatingSort} onPlayer={openProfile} days={days} dayPlayers={dayPlayers} engine={getEngine()}/>}
       {tab==='account' && <AccountPage session={session} adminVerified={showAdminView} players={players} days={days} games={games} teams={teams} dayPlayers={dayPlayers} icons={icons} engine={getEngine()} onLoginSocial={async(provider)=>{const w=await waitForEngine();const result=await w.sb!.auth.signInWithOAuth({provider:provider as any,options:{redirectTo:window.location.origin+window.location.pathname,skipBrowserRedirect:true}});if(result.error)throw result.error;const authUrl=result.data?.url;if(!authUrl)throw new Error('Supabase не вернул ссылку для входа через Telegram.');window.location.assign(authUrl);}} onRefresh={refresh}/>} 
       {tab==='admin' && showAdminView && <Admin session={session} verified={adminVerified} stats={stats} section={adminSection} setSection={setAdminSection} onLogin={()=>setLoginOpen(true)} onLogout={logout} players={players} days={days} teams={teams} games={games} dayPlayers={dayPlayers} onAdd={()=>setNewPlayerOpen(true)} onEdit={setEditingPlayer} onDelete={deletePlayer} onOpenDay={openDay} onEditDay={openEdit} onQuickEntry={()=>setQuickEntryOpen(true)} onRefresh={refresh} onAddDay={openAddGameDay} onDeleteDay={deleteGameDay} engine={getEngine()}/>} 
     </main>
@@ -686,9 +686,43 @@ function Home({days,teams,dayPlayers,games,onOpen,ready}:{days:any[];teams:any[]
  </section>
 }
 
-function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void}){
+function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer,days,dayPlayers,engine}:{rows:any[];icons:Record<string,string>;playerBadges:any[];isAdmin:boolean;sort:string;setSort:(v:string)=>void;onPlayer:(p:any)=>void;days:any[];dayPlayers:any[];engine:any}){
+  const [positionFilter,setPositionFilter]=useState('all');
+  const [periodFilter,setPeriodFilter]=useState('all');
+  const [dateFrom,setDateFrom]=useState('');
+  const [dateTo,setDateTo]=useState('');
   const badgesByPlayer=new Map(playerBadges.map((badge:any)=>[String(badge.player_id),badge]));
-  const items=[...rows].sort((a,b)=>{
+  const scopedRows=useMemo(()=>{
+    if(periodFilter==='all') return rows;
+    const today=new Date();today.setHours(0,0,0,0);
+    const from=periodFilter==='custom'?(dateFrom||'0000-01-01'):new Date(today.getTime()-(periodFilter==='7'?6:29)*86400000).toISOString().slice(0,10);
+    const to=periodFilter==='custom'?(dateTo||'9999-12-31'):today.toISOString().slice(0,10);
+    return rows.map(row=>{
+      const entries=dayPlayers.filter((entry:any)=>String(entry.player_id)===String(row.p.id)).filter((entry:any)=>{
+        const day=days.find((d:any)=>String(d.id)===String(entry.game_day_id));
+        const date=String(day?.game_date||'').slice(0,10);
+        return date&&date>=from&&date<=to;
+      });
+      const unique=entries.filter((entry:any,i:number,list:any[])=>list.findIndex((v:any)=>String(v.game_day_id)===String(entry.game_day_id))===i);
+      const sum=(key:string)=>entries.reduce((total:number,entry:any)=>total+(Number(entry[key])||0),0);
+      const dayRatings=unique.map((entry:any)=>Number(engine?.dayRatingForEntry?.(entry))).filter((v:number)=>Number.isFinite(v));
+      const rating=dayRatings.length?dayRatings.reduce((a:number,b:number)=>a+b,0)/dayRatings.length:0;
+      const goals=sum('goals'),assists=sum('assists');
+      return {...row,s:{...row.s,days:unique.length,goals,assists,gp:goals+assists,saves:sum('saves'),conceded:sum('conceded'),ownGoals:sum('own_goals'),rating:Number(rating.toFixed(2)),loyaltyBonus:0,absenceDebuff:0}};
+    });
+  },[rows,periodFilter,dateFrom,dateTo,dayPlayers,days,engine]);
+  const positionMatches=(player:any)=>{
+    if(positionFilter==='all')return true;
+    if(positionFilter==='goalkeeper')return !!player.is_goalkeeper||/вратар|goalkeeper/i.test(player.position||'');
+    const value=String(player.position||'').toLocaleLowerCase('ru-RU');
+    if(positionFilter==='defender')return /защит|defend|бек|back/i.test(value);
+    if(positionFilter==='midfielder')return /полузащит|центр|опорн|атакующ|midfield/i.test(value);
+    if(positionFilter==='forward')return /напада|форвард|атак|forward|striker/i.test(value);
+    if(positionFilter==='other')return !player.is_goalkeeper&&!/вратар|goalkeeper|защит|defend|бек|back|полузащит|центр|опорн|атакующ|midfield|напада|форвард|forward|striker/i.test(value);
+    return true;
+  };
+  const filteredRows=scopedRows.filter(x=>positionMatches(x.p));
+  const items=[...filteredRows].sort((a,b)=>{
     const name=(a.p.name||'').localeCompare(b.p.name||'','ru',{sensitivity:'base'});
     if(sort==='name') return name;
     const get=(x:any)=>sort==='days'?x.s.days:sort==='goals'?x.s.goals:sort==='assists'?x.s.assists:sort==='gp'?x.s.gp:sort==='saves'?x.s.saves:sort==='conceded'?x.s.conceded:sort==='ownGoals'?x.s.ownGoals:x.s.rating;
@@ -704,7 +738,7 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:an
   });
   const confirmed=items.filter(x=>(Number(x.s.days)||0)>=3);
   const preliminary=items.filter(x=>(Number(x.s.days)||0)>0&&(Number(x.s.days)||0)<3);
-  const inactive=items.filter(x=>(Number(x.s.days)||0)===0);
+  const inactive=periodFilter==='all'?items.filter(x=>(Number(x.s.days)||0)===0):[];
   const filters=[
     ['name','Имя','player'],['days','Игровые дни','day'],['goals','Забил','goal'],['assists','Пас','pass'],['gp','Г+П','gp'],
     ['saves','Сейвы','saves'],['conceded','Пропустил','conceded'],['ownGoals','Автоголы','own'],['rating','Общий рейтинг','rating']
@@ -731,17 +765,19 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:an
     {!list.length&&<div className="rating-empty-state">В этой категории пока нет игроков.</div>}
   </div>;
   return <section className="page rating-page">
-    <div className="section-head rating-intro"><div><h2>Рейтинг игроков</h2><p>В основной рейтинг попадают игроки после 3 игровых дней. До этого рейтинг предварительный.</p></div></div>
+    <div className="section-head rating-intro"><div><h2>Рейтинг игроков</h2><p>{periodFilter==='all'?'В основной рейтинг попадают игроки после 3 игровых дней. До этого рейтинг предварительный.':'За выбранный период рейтинг считается как средняя оценка за сыгранные дни; для подтверждения также нужно 3 игровых дня.'}</p></div></div>
+    <div className="rating-scope-controls" style={{display:'flex',flexWrap:'wrap',gap:10,alignItems:'center',margin:'0 0 16px'}}>
+      <label style={{display:'flex',gap:7,alignItems:'center'}}>Позиция <select value={positionFilter} onChange={e=>setPositionFilter(e.target.value)}><option value="all">Все игроки</option><option value="goalkeeper">Вратари</option><option value="defender">Защитники</option><option value="midfielder">Полузащитники</option><option value="forward">Нападающие</option><option value="other">Другие позиции</option></select></label>
+      <label style={{display:'flex',gap:7,alignItems:'center'}}>Период <select value={periodFilter} onChange={e=>setPeriodFilter(e.target.value)}><option value="all">Весь сезон</option><option value="7">Последние 7 дней</option><option value="30">Последние 30 дней</option><option value="custom">Выбрать даты</option></select></label>
+      {periodFilter==='custom'&&<><label style={{display:'flex',gap:6,alignItems:'center'}}>С <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}/></label><label style={{display:'flex',gap:6,alignItems:'center'}}>По <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}/></label></>}
+    </div>
     <div className="rating-filters">{filters.map(([key,label,icon])=><button key={key} className={sort===key?'rating-filter active':'rating-filter'} onClick={()=>setSort(key)}><Icon name={icon} size={22}/><span>{label}</span></button>)}</div>
-
     <div className="rating-group-head"><div><h3>Подтверждённый рейтинг</h3><p>3 и более игровых дней · игроки ранжируются в основном зачёте</p></div><span className="rating-group-count">{confirmed.length} игроков</span></div>
     {renderTable(confirmed,true)}
-
     <div className="rating-group-head rating-group-preliminary"><div><h3>Предварительный рейтинг</h3><p>1–2 игровых дня · оценки видны, но игроки не занимают места в основном рейтинге</p></div><span className="rating-group-count">{preliminary.length} игроков</span></div>
     {renderTable(preliminary,false)}
-
     {inactive.length>0&&<><div className="rating-group-head rating-group-inactive"><div><h3>Пока без игровых дней</h3><p>Игроки есть в базе, но ещё не участвовали в сохранённых игровых днях</p></div><span className="rating-group-count">{inactive.length} игроков</span></div>{renderTable(inactive,false)}</>}
-  </section>
+  </section>;
 }
 function PlayerAuthInfoModal({engine,userId,onClose}:{engine:any;userId:string;onClose:()=>void}){
  const [info,setInfo]=useState<any>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
