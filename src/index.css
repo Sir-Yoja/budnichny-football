@@ -1095,3 +1095,17 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .view-mode-switch button.user-active{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.16);color:#f0f3f5;}
 @media(max-width:800px){.view-mode-switch{margin-left:auto;padding:3px;gap:2px}.view-mode-switch button{padding:7px 8px;font-size:10px;gap:4px}.mobile-menu{margin-left:8px;}}
 @media(max-width:390px){.view-mode-switch button{padding:6px 6px;font-size:9px}.view-mode-switch button svg{display:none;}}
+
+/* Фирменный селектор периода рейтинга */
+.rating-period-bar{display:flex;align-items:center;flex-wrap:wrap;gap:11px;margin:18px 0 16px}
+.rating-period-label{color:#c9d5dc;font-size:13px;font-weight:700;letter-spacing:.02em}
+.rating-period-select-wrap{position:relative;display:inline-flex;align-items:center;min-width:190px}
+.rating-period-select{appearance:none;-webkit-appearance:none;width:100%;min-height:42px;padding:9px 40px 9px 14px;border:1px solid rgba(207,184,66,.38);border-radius:10px;background:linear-gradient(135deg,rgba(13,36,50,.96),rgba(7,23,34,.96));color:#f0e6c9;font:700 13px Manrope,Arial,sans-serif;letter-spacing:.01em;outline:none;box-shadow:inset 0 1px rgba(255,255,255,.035),0 5px 16px rgba(0,0,0,.16);cursor:pointer;transition:border-color .18s,box-shadow .18s}
+.rating-period-select:hover,.rating-period-select:focus{border-color:rgba(231,193,91,.8);box-shadow:0 0 0 2px rgba(207,184,66,.12),0 6px 18px rgba(0,0,0,.2)}
+.rating-period-select option{background:#0d1d28;color:#edf3f6}
+.rating-period-chevron{position:absolute;right:14px;pointer-events:none;color:#d8bd62;font-size:19px;line-height:1;top:8px}
+.rating-date-range{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+.rating-date-range label{display:flex;align-items:center;gap:7px;color:#9fb0ba;font-size:12px;font-weight:700}
+.rating-date-range input{min-height:42px;padding:8px 10px;border:1px solid rgba(207,184,66,.28);border-radius:9px;background:#0b1d28;color:#e9eef5;color-scheme:dark;font:600 12px Manrope,Arial,sans-serif;outline:none}
+.rating-date-range input:focus{border-color:rgba(231,193,91,.8);box-shadow:0 0 0 2px rgba(207,184,66,.12)}
+@media(max-width:600px){.rating-period-bar{gap:9px;margin:14px 0}.rating-period-select-wrap{min-width:0;flex:1}.rating-period-select{min-height:44px}.rating-date-range{width:100%}.rating-date-range label{flex:1;min-width:0}.rating-date-range input{min-width:0;width:100%}}
