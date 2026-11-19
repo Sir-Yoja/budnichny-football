@@ -692,7 +692,15 @@ function Rating({rows,icons,playerBadges,isAdmin,sort,setSort,onPlayer}:{rows:an
     const name=(a.p.name||'').localeCompare(b.p.name||'','ru',{sensitivity:'base'});
     if(sort==='name') return name;
     const get=(x:any)=>sort==='days'?x.s.days:sort==='goals'?x.s.goals:sort==='assists'?x.s.assists:sort==='gp'?x.s.gp:sort==='saves'?x.s.saves:sort==='conceded'?x.s.conceded:sort==='ownGoals'?x.s.ownGoals:x.s.rating;
-    return (Number(get(b))||0)-(Number(get(a))||0)||name;
+    const primary=(Number(get(b))||0)-(Number(get(a))||0);
+    if(primary) return primary;
+    if(sort==='rating'){
+      const goalContrib=(Number(b.s.gp)||0)-(Number(a.s.gp)||0);
+      if(goalContrib) return goalContrib;
+      const gameDays=(Number(b.s.days)||0)-(Number(a.s.days)||0);
+      if(gameDays) return gameDays;
+    }
+    return name;
   });
   const confirmed=items.filter(x=>(Number(x.s.days)||0)>=3);
   const preliminary=items.filter(x=>(Number(x.s.days)||0)>0&&(Number(x.s.days)||0)<3);
