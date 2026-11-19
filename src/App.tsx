@@ -35,7 +35,7 @@ const getAttendanceEffects=(rosterRows:any[],days:any[],games:any[],today=localD
  const dayDistance=(from:string,to:string)=>Math.floor((Date.parse(to+'T00:00:00Z')-Date.parse(from+'T00:00:00Z'))/86400000);
  const gapPenalty=(gapDays:number)=>{
   let penalty=0;
-  for(let threshold=8;threshold<=gapDays;threshold+=8)penalty+=gapDays>threshold&&gapDays<=threshold+3?0.02:0.04;
+  for(let threshold=8;threshold<=gapDays;threshold+=8)penalty+=0.08;
   return Number(penalty.toFixed(2));
  };
  const previousDates=dates.filter(date=>date<DEBUFF_START_DATE),activeDates=dates.filter(date=>date>=DEBUFF_START_DATE);
@@ -49,7 +49,7 @@ const getAttendanceEffects=(rosterRows:any[],days:any[],games:any[],today=localD
  activeDates.forEach(date=>{const gap=dayDistance(previousDate,date);if(gap>=8)historicalDebuff+=gapPenalty(gap);previousDate=date;});
  const absenceAnchor=lastAttendanceDate>=DEBUFF_START_DATE?lastAttendanceDate:DEBUFF_START_DATE;
  const absenceDays=Math.max(0,dayDistance(absenceAnchor,today));
- const candidateDebuff=dates.length>0&&absenceDays>=8?Number((Math.floor(absenceDays/8)*0.04).toFixed(2)):0;
+ const candidateDebuff=dates.length>0&&absenceDays>=8?Number((Math.floor(absenceDays/8)*0.08).toFixed(2)):0;
  const totalDebuff=Number((historicalDebuff+candidateDebuff).toFixed(2));
  return {totalDays:dates.length,streakDays,absenceDays,lastAttendanceDate,loyaltyBonus:Number((Math.floor(streakDays/10)*0.02).toFixed(2)),candidateDebuff,totalDebuff};
 };
