@@ -1109,3 +1109,21 @@ body,button,input,select,textarea{font-family:'Manrope',Arial,sans-serif}
 .rating-date-range input{min-height:42px;padding:8px 10px;border:1px solid rgba(207,184,66,.28);border-radius:9px;background:#0b1d28;color:#e9eef5;color-scheme:dark;font:600 12px Manrope,Arial,sans-serif;outline:none}
 .rating-date-range input:focus{border-color:rgba(231,193,91,.8);box-shadow:0 0 0 2px rgba(207,184,66,.12)}
 @media(max-width:600px){.rating-period-bar{gap:9px;margin:14px 0}.rating-period-select-wrap{min-width:0;flex:1}.rating-period-select{min-height:44px}.rating-date-range{width:100%}.rating-date-range label{flex:1;min-width:0}.rating-date-range input{min-width:0;width:100%}}
+
+/* История эффектов игрока — фирменная тёмно-синяя и золотая палитра */
+.effect-history-card{margin:18px 0 22px;padding:16px 17px;border:1px solid rgba(207,184,66,.2);border-radius:15px;background:linear-gradient(145deg,rgba(16,38,51,.92),rgba(8,22,31,.96));box-shadow:inset 0 1px rgba(255,255,255,.035),0 12px 28px rgba(0,0,0,.13)}
+.effect-history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.effect-history-heading h3{margin:3px 0 0;color:#edf2f4;font:700 17px 'Manrope',Arial,sans-serif}
+.effect-history-count{display:grid;place-items:center;min-width:29px;height:29px;padding:0 8px;border:1px solid rgba(207,184,66,.32);border-radius:9px;background:rgba(207,184,66,.08);color:#e4c96e;font-size:12px;font-weight:800}
+.effect-history-list{display:grid;gap:7px}
+.effect-history-item{display:flex;align-items:center;gap:11px;min-width:0;padding:10px 11px;border:1px solid rgba(255,255,255,.055);border-radius:10px;background:rgba(4,14,21,.44)}
+.effect-history-mark{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border-radius:8px;font-size:15px;font-weight:900}
+.effect-history-item.buff .effect-history-mark{color:#f0cc72;background:rgba(207,184,66,.12);border:1px solid rgba(207,184,66,.2);text-shadow:0 0 9px rgba(225,179,75,.25)}
+.effect-history-item.debuff .effect-history-mark{color:#e39a89;background:rgba(159,67,59,.13);border:1px solid rgba(196,103,87,.2)}
+.effect-history-main{display:grid;gap:3px;min-width:0;flex:1}
+.effect-history-main strong{color:#e6edf1;font-size:12px;font-weight:800}
+.effect-history-main small{color:#8295a1;font-size:10px;line-height:1.35}
+.effect-history-item>b{flex:0 0 auto;color:#e9c76d;font-size:14px;font-variant-numeric:tabular-nums}
+.effect-history-item.debuff>b{color:#df9685}
+.effect-history-empty{padding:15px 11px;border:1px dashed rgba(255,255,255,.1);border-radius:10px;color:#8fa0aa;font-size:12px;text-align:center}
+@media(max-width:600px){.effect-history-card{padding:13px 11px;margin:14px 0 18px}.effect-history-heading h3{font-size:15px}.effect-history-item{padding:9px;gap:8px}.effect-history-main strong{font-size:11px}.effect-history-main small{font-size:9px}}
