@@ -588,6 +588,8 @@ export default function App(){
     if(enabled&&nextAmount<=0)throw new Error('Игрок пока не попадает под условия дебаффа.');
     const result=await w.sb.from('players').update({debuff_enabled:enabled,debuff_amount:nextAmount}).eq('id',playerId).select().single();
     if(result?.error)throw result.error;
+    const event=await w.sb.from('player_effect_events').insert({player_id:playerId,effect_type:enabled?'debuff_enabled':'debuff_disabled',amount:enabled?nextAmount:(Number(player.debuff_amount)||0),source:'admin',details:{previous_amount:Number(player.debuff_amount)||0}});
+    if(event?.error)console.warn('Не удалось записать событие дебаффа:',event.error);
     setPlayers(prev=>prev.map((item:any)=>String(item.id)===String(playerId)?{...item,...result.data}:item));
     setPlayerProfile((prev:any)=>prev&&String(prev.id)===String(playerId)?{...prev,...result.data}:prev);
     return result.data;
@@ -1417,6 +1419,38 @@ function LoyaltyProgress({totalDays,absenceDebuff=0,absenceDays=0}:{totalDays:nu
 function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,engine,isAdmin,onToggleDebuff}:{player:any;days:any[];teams:any[];dayPlayers:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any;isAdmin:boolean;onToggleDebuff:(playerId:number,enabled:boolean)=>Promise<any>}){
   const [debuffBusy,setDebuffBusy]=useState(false),[debuffError,setDebuffError]=useState('');
   const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
+  const [effectEvents,setEffectEvents]=useState<any[]>([]);
+  const [effectEventsLoading,setEffectEventsLoading]=useState(true);
+  useEffect(()=>{
+    let cancelled=false;
+    const load=async()=>{
+      setEffectEventsLoading(true);
+      const sb=engine?.sb;
+      if(!sb){if(!cancelled)setEffectEventsLoading(false);return;}
+      try{
+        let result=await sb.from('player_effect_events').select('*').eq('player_id',player.id).order('created_at',{ascending:false}).limit(100);
+        if(result.error)throw result.error;
+        let events=result.data||[];
+        if(isAdmin){
+          const currentBuff=getAttendanceEffects(dayPlayers.filter((x:any)=>String(x.player_id)===String(player.id)),days,games).loyaltyBonus;
+          const buffEvents=events.filter((x:any)=>String(x.effect_type).startsWith('buff_'));
+          const latest=buffEvents[0];
+          if(!latest&&currentBuff>0){
+            await sb.from('player_effect_events').insert({player_id:player.id,effect_type:'buff_tracking_started',amount:currentBuff,source:'attendance',details:{streak_days:getAttendanceEffects(dayPlayers.filter((x:any)=>String(x.player_id)===String(player.id)),days,games).streakDays,note:'Начало ведения истории; текущий уровень зафиксирован без восстановления прошлых дат'}});
+          }else if(latest&&Math.abs(Number(latest.amount||0)-currentBuff)>=0.001){
+            await sb.from('player_effect_events').insert({player_id:player.id,effect_type:currentBuff>Number(latest.amount||0)?'buff_increased':'buff_reset',amount:currentBuff,source:'attendance',details:{previous_amount:Number(latest.amount)||0,streak_days:getAttendanceEffects(dayPlayers.filter((x:any)=>String(x.player_id)===String(player.id)),days,games).streakDays}});
+          }
+          result=await sb.from('player_effect_events').select('*').eq('player_id',player.id).order('created_at',{ascending:false}).limit(100);
+          if(result.error)throw result.error;
+          events=result.data||[];
+        }
+        if(!cancelled)setEffectEvents(events);
+      }catch(error){console.warn('Не удалось загрузить историю бафов и дебаффов:',error);}
+      finally{if(!cancelled)setEffectEventsLoading(false);}
+    };
+    load();
+    return()=>{cancelled=true;};
+  },[player.id,engine,isAdmin,dayPlayers,days,games]);
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>engine;
   // Keep profile participation count/history aligned with the main rating: one entry per distinct game day.
@@ -1452,6 +1486,16 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
         <button type="button" className={player.debuff_enabled?'admin-debuff-toggle active':'admin-debuff-toggle'} disabled={debuffBusy||(!player.debuff_enabled&&effects.candidateDebuff<=0)} aria-pressed={!!player.debuff_enabled} onClick={toggleDebuff}>{debuffBusy?'СОХРАНЯЮ…':player.debuff_enabled?'ВЫКЛЮЧИТЬ ДЕБАФФ':'ВКЛЮЧИТЬ ДЕБАФФ'}</button>
         {debuffError&&<div className="admin-debuff-error">{debuffError}</div>}
       </div>}
+      <div className="effect-history-card">
+        <div className="effect-history-heading"><div><div className="eyebrow">ЖУРНАЛ ИЗМЕНЕНИЙ</div><h3>История бафов и дебаффов</h3></div><span className="effect-history-count">{effectEvents.length}</span></div>
+        {effectEventsLoading?<div className="effect-history-empty">Загружаем историю…</div>:effectEvents.length?<div className="effect-history-list">{effectEvents.map((event:any)=>{
+          const buff=String(event.effect_type).startsWith('buff_');
+          const title=event.effect_type==='buff_tracking_started'?'Начато отслеживание бафа':event.effect_type==='buff_increased'?'Повышен баф':event.effect_type==='buff_reset'?'Сброшена серия бафа':event.effect_type==='debuff_enabled'?'Включён дебафф':event.effect_type==='debuff_disabled'?'Дебафф отключён':event.effect_type==='debuff_auto_cleared'?'Дебафф снят после возвращения':'Изменён размер дебаффа';
+          const date=new Date(event.created_at);
+          const dateLabel=Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(date);
+          return <div className={`effect-history-item ${buff?'buff':'debuff'}`} key={event.id}><span className="effect-history-mark">{buff?'✦':'▼'}</span><div className="effect-history-main"><strong>{title}</strong><small>{dateLabel}{event.details?.streak_days? ` · Серия: ${event.details.streak_days} игровых дней`:''}</small></div><b>{buff?'+':'−'}{Number(event.amount||0).toFixed(2)}</b></div>;
+        })}</div>:<div className="effect-history-empty">История пока пуста. Новые изменения будут записываться автоматически.</div>}
+      </div>
       <div className="profile-stat-grid">
         <div className="profile-stat">{icon('goal',30)}<small>Голы</small><b>{totals.goals}</b></div>
         <div className="profile-stat">{icon('pass',30)}<small>Пасы</small><b>{totals.assists}</b></div>
