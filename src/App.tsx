@@ -137,8 +137,9 @@ export default function App(){
         if(effects.lastAttendanceDate&&effects.absenceDays===0){
           const cleared=await w.sb?.from('players').update({debuff_enabled:false,debuff_amount:0}).eq('id',player.id).eq('debuff_enabled',true);
           if(!cleared?.error){
+            const clearedAmount=Number(player.debuff_amount)||0;
             player.debuff_enabled=false;player.debuff_amount=0;
-            const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:'debuff_auto_cleared',amount:Number(player.debuff_amount)||0,source:'attendance',details:{reason:'Игрок вернулся на игровой день'}});
+            const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:'debuff_auto_cleared',amount:clearedAmount,source:'attendance',details:{reason:'Игрок вернулся на игровой день'}});
             if(logged?.error)console.warn('Не удалось записать снятие дебаффа:',logged.error);
           }else console.warn('Не удалось автоматически снять дебафф:',cleared.error);
           continue;
