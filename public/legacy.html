@@ -1859,6 +1859,6 @@ async function updateHeroAdminButton(){
 }
 
 window.loadPlayers=loadPlayers;window.loadDays=loadDays;window.openDay=openDay;window.openEditDay=openEditDay;window.closeModal=closeModal;window.playerTotals=playerTotals;window.playerRating=playerRating;window.playerDayEntries=playerDayEntries;window.teamResultsForDay=teamResultsForDay;window.dayRatingForEntry=dayRatingForEntry;window.hasNonZeroDayStats=hasNonZeroDayStats;window.matchStatsHaveConsistentTeams=matchStatsHaveConsistentTeams;window.dayTotalsMatchMatchStats=dayTotalsMatchMatchStats;window.aggregateMatchStatRows=aggregateMatchStatRows;window.inspectDayStatsSync=inspectDayStatsSync;window.isDayMatchStatsComplete=isDayMatchStatsComplete;window.syncDayAggregateFromMatchStats=syncDayAggregateFromMatchStats;window.renderPlayers=renderPlayers;window.renderAdmin=renderAdmin;window.uploadGameDayImage=uploadGameDayImage;window.removeGameDayImage=removeGameDayImage;updateHeroAdminButton();
-Promise.all([loadDays(),loadPlayers()]).catch(e=>showError(e));
+// Initial data loading is coordinated by the parent application.
 </script><div id="imageLightbox" class="image-lightbox hidden"><button class="image-lightbox-close" onclick="closeImageLightbox()">×</button><img id="lightboxImage" src="" alt="Составы команд" onclick="event.stopPropagation()"></div>
 </body></html>
