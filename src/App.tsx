@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronRight, CircleUserRound, LayoutDashboard, LogIn, LogOut, Menu, Pencil, Plus, Shield, Trophy, Users, X, Trash2, RefreshCw, Image as ImageIcon, Zap, Mail, Send } from 'lucide-react';
-import { legacyHtml } from './legacyHtml';
 import activeWizardImage from './assets/wizard-approved.webp';
 import normalWizardImage from './assets/wizard-approved.webp';
 
@@ -118,7 +117,7 @@ export default function App(){
       const bg=w.document ? getComputedStyle(w.document.body).backgroundImage : '';
       if(bg && bg!=='none') setLegacyBackground(bg);
     }catch{}
-    try{ await w.loadPlayers?.(); await w.loadDays?.(); }
+    try{ await Promise.all([w.loadPlayers?.(),w.loadDays?.()]); }
     catch(e){ console.error(e); }
     try{ if(!w.__leagueIcons) w.renderPlayers?.(); }catch{}
     const state=w.getLeagueState?.();
@@ -635,7 +634,7 @@ export default function App(){
   }).sort((a,b)=>(b.s.rating||0)-(a.s.rating||0)),[players,dayPlayers,games,teams,days,ready]);
 
   return <div className="app" style={legacyBackground ? {backgroundImage: legacyBackground} : undefined}>
-    <iframe ref={frame} onLoad={onLoad} className={dayModal!==null ? "engine editor-visible" : "engine"} title="data-engine" srcDoc={legacyHtml}/>
+    <iframe ref={frame} onLoad={onLoad} className={dayModal!==null ? "engine editor-visible" : "engine"} title="data-engine" src="legacy.html"/>
     <header className={dayModal!==null ? "topbar game-open" : navHiddenOnScroll ? "topbar scroll-hidden" : "topbar"}>
       <div className="brand" onClick={()=>{setTab('home');setMenu(false)}}><span className="brand-ball">⚽</span><div><b>БУДНИЧНЫЙ ФУТБОЛ</b><small>Панель лиги</small></div></div>
       <nav className={menu?'nav open':'nav'}>
