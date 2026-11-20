@@ -134,8 +134,8 @@ export default function App(){
       const latestBuffEvent=new Map<string,any>();
       for(const event of buffLogResult?.data||[]){const key=String(event.player_id);if(!latestBuffEvent.has(key))latestBuffEvent.set(key,event);}
       for(const player of loadedPlayers){
-        const effects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
-        const buffIsOn=effects.loyaltyBonus>0;
+        const buffEffects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
+        const buffIsOn=buffEffects.loyaltyBonus>0;
         const lastBuffEvent=latestBuffEvent.get(String(player.id));
         const lastBuffIsOn=lastBuffEvent?.effect_type==='buff_tracking_started';
         if(buffIsOn!==lastBuffIsOn){
