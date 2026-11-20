@@ -136,14 +136,21 @@ export default function App(){
         // so a fresh attendance resets absenceDays to zero.
         if(effects.lastAttendanceDate&&effects.absenceDays===0){
           const cleared=await w.sb?.from('players').update({debuff_enabled:false,debuff_amount:0}).eq('id',player.id).eq('debuff_enabled',true);
-          if(!cleared?.error){player.debuff_enabled=false;player.debuff_amount=0;}
-          else console.warn('Не удалось автоматически снять дебафф:',cleared.error);
+          if(!cleared?.error){
+            player.debuff_enabled=false;player.debuff_amount=0;
+            const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:'debuff_auto_cleared',amount:Number(player.debuff_amount)||0,source:'attendance',details:{reason:'Игрок вернулся на игровой день'}});
+            if(logged?.error)console.warn('Не удалось записать снятие дебаффа:',logged.error);
+          }else console.warn('Не удалось автоматически снять дебафф:',cleared.error);
           continue;
         }
         const currentAmount=Number(player.debuff_amount)||0;
         if(Math.abs(effects.totalDebuff-currentAmount)>0.001){
           const saved=await w.sb?.from('players').update({debuff_amount:effects.totalDebuff}).eq('id',player.id).eq('debuff_enabled',true);
-          if(!saved?.error)player.debuff_amount=effects.totalDebuff;
+          if(!saved?.error){
+            player.debuff_amount=effects.totalDebuff;
+            const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:'debuff_amount_changed',amount:effects.totalDebuff,source:'attendance',details:{previous_amount:currentAmount}});
+            if(logged?.error)console.warn('Не удалось записать изменение дебаффа:',logged.error);
+          }
         }
       }
       setPlayers([...loadedPlayers]);
