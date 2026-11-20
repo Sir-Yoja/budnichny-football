@@ -1437,6 +1437,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
   const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
   const [effectEvents,setEffectEvents]=useState<any[]>([]);
   const [effectEventsLoading,setEffectEventsLoading]=useState(true);
+  const visibleEffectEvents=effectEvents.filter((event:any)=>['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset'].includes(event.effect_type));
   useEffect(()=>{
     let cancelled=false;
     const load=async()=>{
@@ -1446,7 +1447,8 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
       try{
         const result=await sb.from('player_effect_events').select('id,effect_type,created_at').eq('player_id',player.id).in('effect_type',['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset']).order('created_at',{ascending:false}).limit(100);
         if(result.error)throw result.error;
-        if(!cancelled)setEffectEvents(result.data||[]);
+        const allowedEvents=(result.data||[]).filter((event:any)=>['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset'].includes(event.effect_type));
+        if(!cancelled)setEffectEvents(allowedEvents);
       }catch(error){console.warn('Не удалось загрузить журнал включения и отключения:',error);}
       finally{if(!cancelled)setEffectEventsLoading(false);}
     };
@@ -1489,8 +1491,8 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
         {debuffError&&<div className="admin-debuff-error">{debuffError}</div>}
       </div>}
       <div className="effect-history-card">
-        <div className="effect-history-heading"><div><div className="eyebrow">ЖУРНАЛ</div><h3>История включения и отключения</h3></div><span className="effect-history-count">{effectEvents.length}</span></div>
-        {effectEventsLoading?<div className="effect-history-empty">Загружаем журнал…</div>:effectEvents.length?<div className="effect-history-list">{effectEvents.map((event:any)=>{
+        <div className="effect-history-heading"><div><div className="eyebrow">ЖУРНАЛ ИЗМЕНЕНИЙ</div><h3>История баффов и дебаффов</h3></div><span className="effect-history-count">{visibleEffectEvents.length}</span></div>
+        {effectEventsLoading?<div className="effect-history-empty">Загружаем журнал…</div>:visibleEffectEvents.length?<div className="effect-history-list">{visibleEffectEvents.map((event:any)=>{
           const enabled=event.effect_type==='debuff_enabled';
           const isBuff=event.effect_type==='buff_tracking_started'||event.effect_type==='buff_reset';
           const title=isBuff?(event.effect_type==='buff_tracking_started'?'Бафф включён':'Бафф отключён'):(enabled?'Дебафф включён':'Дебафф отключён');
