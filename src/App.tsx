@@ -128,7 +128,20 @@ export default function App(){
     try{
       // Use the same canonical roster source as the displayed game-day count.
       const attendanceDays=state?.dayPlayers||w.dayPlayers||[];
+      const playerIds=loadedPlayers.map((player:any)=>player.id);
+      const buffLogResult=playerIds.length?await w.sb?.from('player_effect_events').select('player_id,effect_type,created_at').in('player_id',playerIds).in('effect_type',['buff_tracking_started','buff_reset']).order('created_at',{ascending:false}):{data:[],error:null};
+      if(buffLogResult?.error)console.warn('Не удалось проверить состояние бафа:',buffLogResult.error);
+      const latestBuffEvent=new Map<string,any>();
+      for(const event of buffLogResult?.data||[]){const key=String(event.player_id);if(!latestBuffEvent.has(key))latestBuffEvent.set(key,event);}
       for(const player of loadedPlayers){
+        const effects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
+        const buffIsOn=effects.loyaltyBonus>0;
+        const lastBuffEvent=latestBuffEvent.get(String(player.id));
+        const lastBuffIsOn=lastBuffEvent?.effect_type==='buff_tracking_started';
+        if(buffIsOn!==lastBuffIsOn){
+          const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:buffIsOn?'buff_tracking_started':'buff_reset',source:'attendance'});
+          if(logged?.error)console.warn('Не удалось записать включение или отключение бафа:',logged.error);
+        }
         if(!player.debuff_enabled)continue;
         const effects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
         // An active debuff is automatically cleared as soon as a new attended game day is recorded.
@@ -1431,7 +1444,7 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
       const sb=engine?.sb;
       if(!sb){if(!cancelled)setEffectEventsLoading(false);return;}
       try{
-        const result=await sb.from('player_effect_events').select('id,effect_type,created_at').eq('player_id',player.id).in('effect_type',['debuff_enabled','debuff_disabled']).order('created_at',{ascending:false}).limit(100);
+        const result=await sb.from('player_effect_events').select('id,effect_type,created_at').eq('player_id',player.id).in('effect_type',['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset']).order('created_at',{ascending:false}).limit(100);
         if(result.error)throw result.error;
         if(!cancelled)setEffectEvents(result.data||[]);
       }catch(error){console.warn('Не удалось загрузить журнал включения и отключения:',error);}
@@ -1479,10 +1492,11 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
         <div className="effect-history-heading"><div><div className="eyebrow">ЖУРНАЛ</div><h3>История включения и отключения</h3></div><span className="effect-history-count">{effectEvents.length}</span></div>
         {effectEventsLoading?<div className="effect-history-empty">Загружаем журнал…</div>:effectEvents.length?<div className="effect-history-list">{effectEvents.map((event:any)=>{
           const enabled=event.effect_type==='debuff_enabled';
-          const title=enabled?'Дебафф включён':'Дебафф отключён';
+          const isBuff=event.effect_type==='buff_tracking_started'||event.effect_type==='buff_reset';
+          const title=isBuff?(event.effect_type==='buff_tracking_started'?'Бафф включён':'Бафф отключён'):(enabled?'Дебафф включён':'Дебафф отключён');
           const date=new Date(event.created_at);
           const dateLabel=Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(date);
-          return <div className={`effect-history-item ${enabled?'debuff':'buff'}`} key={event.id}><span className="effect-history-mark">{enabled?'●':'○'}</span><div className="effect-history-main"><strong>{title}</strong><small>{dateLabel}</small></div></div>;
+          return <div className={`effect-history-item ${isBuff?'buff':enabled?'debuff':'buff'}`} key={event.id}><span className="effect-history-mark">{enabled?'●':'○'}</span><div className="effect-history-main"><strong>{title}</strong><small>{dateLabel}</small></div></div>;
         })}</div>:<div className="effect-history-empty">Записей пока нет.</div>}
       </div>
       <div className="profile-stat-grid">
