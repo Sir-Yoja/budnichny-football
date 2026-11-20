@@ -117,7 +117,7 @@ export default function App(){
       const bg=w.document ? getComputedStyle(w.document.body).backgroundImage : '';
       if(bg && bg!=='none') setLegacyBackground(bg);
     }catch{}
-    try{ await w.loadPlayers?.(); await w.loadDays?.(); }
+    try{ await Promise.all([w.loadPlayers?.(),w.loadDays?.()]); }
     catch(e){ console.error(e); }
     try{ if(!w.__leagueIcons) w.renderPlayers?.(); }catch{}
     const state=w.getLeagueState?.();
