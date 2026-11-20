@@ -128,20 +128,7 @@ export default function App(){
     try{
       // Use the same canonical roster source as the displayed game-day count.
       const attendanceDays=state?.dayPlayers||w.dayPlayers||[];
-      const playerIds=loadedPlayers.map((player:any)=>player.id);
-      const buffLogResult=playerIds.length?await w.sb?.from('player_effect_events').select('player_id,effect_type,created_at').in('player_id',playerIds).in('effect_type',['buff_tracking_started','buff_reset']).order('created_at',{ascending:false}):{data:[],error:null};
-      if(buffLogResult?.error)console.warn('Не удалось проверить состояние бафа:',buffLogResult.error);
-      const latestBuffEvent=new Map<string,any>();
-      for(const event of buffLogResult?.data||[]){const key=String(event.player_id);if(!latestBuffEvent.has(key))latestBuffEvent.set(key,event);}
       for(const player of loadedPlayers){
-        const buffEffects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
-        const buffIsOn=buffEffects.loyaltyBonus>0;
-        const lastBuffEvent=latestBuffEvent.get(String(player.id));
-        const lastBuffIsOn=lastBuffEvent?.effect_type==='buff_tracking_started';
-        if(buffIsOn!==lastBuffIsOn){
-          const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:buffIsOn?'buff_tracking_started':'buff_reset',source:'attendance'});
-          if(logged?.error)console.warn('Не удалось записать включение или отключение бафа:',logged.error);
-        }
         if(!player.debuff_enabled)continue;
         const effects=getAttendanceEffects(attendanceDays.filter((row:any)=>String(row.player_id)===String(player.id)),state?.days||w.days||[],state?.games||w.games||[]);
         // An active debuff is automatically cleared as soon as a new attended game day is recorded.
@@ -151,8 +138,6 @@ export default function App(){
           const cleared=await w.sb?.from('players').update({debuff_enabled:false,debuff_amount:0}).eq('id',player.id).eq('debuff_enabled',true);
           if(!cleared?.error){
             player.debuff_enabled=false;player.debuff_amount=0;
-            const logged=await w.sb?.from('player_effect_events').insert({player_id:player.id,effect_type:'debuff_disabled',source:'attendance'});
-            if(logged?.error)console.warn('Не удалось записать снятие дебаффа:',logged.error);
           }else console.warn('Не удалось автоматически снять дебафф:',cleared.error);
           continue;
         }
@@ -604,8 +589,6 @@ export default function App(){
     if(enabled&&nextAmount<=0)throw new Error('Игрок пока не попадает под условия дебаффа.');
     const result=await w.sb.from('players').update({debuff_enabled:enabled,debuff_amount:nextAmount}).eq('id',playerId).select().single();
     if(result?.error)throw result.error;
-    const event=await w.sb.from('player_effect_events').insert({player_id:playerId,effect_type:enabled?'debuff_enabled':'debuff_disabled',source:'admin'});
-    if(event?.error)console.warn('Не удалось записать событие дебаффа:',event.error);
     setPlayers(prev=>prev.map((item:any)=>String(item.id)===String(playerId)?{...item,...result.data}:item));
     setPlayerProfile((prev:any)=>prev&&String(prev.id)===String(playerId)?{...prev,...result.data}:prev);
     return result.data;
@@ -1435,26 +1418,6 @@ function LoyaltyProgress({totalDays,absenceDebuff=0,absenceDays=0}:{totalDays:nu
 function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,engine,isAdmin,onToggleDebuff}:{player:any;days:any[];teams:any[];dayPlayers:any[];games:any[];icons:Record<string,string>;onClose:()=>void;engine:any;isAdmin:boolean;onToggleDebuff:(playerId:number,enabled:boolean)=>Promise<any>}){
   const [debuffBusy,setDebuffBusy]=useState(false),[debuffError,setDebuffError]=useState('');
   const toggleDebuff=async()=>{if(debuffBusy)return;setDebuffBusy(true);setDebuffError('');try{await onToggleDebuff(Number(player.id),!player.debuff_enabled);}catch(error:any){setDebuffError(error?.message||'Не удалось изменить дебафф.');}finally{setDebuffBusy(false);}};
-  const [effectEvents,setEffectEvents]=useState<any[]>([]);
-  const [effectEventsLoading,setEffectEventsLoading]=useState(true);
-  const visibleEffectEvents=effectEvents.filter((event:any)=>['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset'].includes(event.effect_type));
-  useEffect(()=>{
-    let cancelled=false;
-    const load=async()=>{
-      setEffectEventsLoading(true);
-      const sb=engine?.sb;
-      if(!sb){if(!cancelled)setEffectEventsLoading(false);return;}
-      try{
-        const result=await sb.from('player_effect_events').select('id,effect_type,created_at').eq('player_id',player.id).in('effect_type',['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset']).order('created_at',{ascending:false}).limit(100);
-        if(result.error)throw result.error;
-        const allowedEvents=(result.data||[]).filter((event:any)=>['debuff_enabled','debuff_disabled','buff_tracking_started','buff_reset'].includes(event.effect_type));
-        if(!cancelled)setEffectEvents(allowedEvents);
-      }catch(error){console.warn('Не удалось загрузить журнал включения и отключения:',error);}
-      finally{if(!cancelled)setEffectEventsLoading(false);}
-    };
-    load();
-    return()=>{cancelled=true;};
-  },[player.id,engine]);
   const icon=(name:string,size=28)=>icons[name]?<img className="profile-icon" src={icons[name]} style={{width:size,height:size}} alt=""/>:<span className="profile-icon-fallback">•</span>;
   const getEngine=()=>engine;
   // Keep profile participation count/history aligned with the main rating: one entry per distinct game day.
@@ -1490,17 +1453,6 @@ function PlayerProfileModal({player,days,teams,dayPlayers,games,icons,onClose,en
         <button type="button" className={player.debuff_enabled?'admin-debuff-toggle active':'admin-debuff-toggle'} disabled={debuffBusy||(!player.debuff_enabled&&effects.candidateDebuff<=0)} aria-pressed={!!player.debuff_enabled} onClick={toggleDebuff}>{debuffBusy?'СОХРАНЯЮ…':player.debuff_enabled?'ВЫКЛЮЧИТЬ ДЕБАФФ':'ВКЛЮЧИТЬ ДЕБАФФ'}</button>
         {debuffError&&<div className="admin-debuff-error">{debuffError}</div>}
       </div>}
-      <div className="effect-history-card">
-        <div className="effect-history-heading"><div><div className="eyebrow">ЖУРНАЛ ИЗМЕНЕНИЙ</div><h3>История баффов и дебаффов</h3></div><span className="effect-history-count">{visibleEffectEvents.length}</span></div>
-        {effectEventsLoading?<div className="effect-history-empty">Загружаем журнал…</div>:visibleEffectEvents.length?<div className="effect-history-list">{visibleEffectEvents.map((event:any)=>{
-          const enabled=event.effect_type==='debuff_enabled';
-          const isBuff=event.effect_type==='buff_tracking_started'||event.effect_type==='buff_reset';
-          const title=isBuff?(event.effect_type==='buff_tracking_started'?'Бафф включён':'Бафф отключён'):(enabled?'Дебафф включён':'Дебафф отключён');
-          const date=new Date(event.created_at);
-          const dateLabel=Number.isNaN(date.getTime())?'—':new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(date);
-          return <div className={`effect-history-item ${isBuff?'buff':enabled?'debuff':'buff'}`} key={event.id}><span className="effect-history-mark">{enabled?'●':'○'}</span><div className="effect-history-main"><strong>{title}</strong><small>{dateLabel}</small></div></div>;
-        })}</div>:<div className="effect-history-empty">Записей пока нет.</div>}
-      </div>
       <div className="profile-stat-grid">
         <div className="profile-stat">{icon('goal',30)}<small>Голы</small><b>{totals.goals}</b></div>
         <div className="profile-stat">{icon('pass',30)}<small>Пасы</small><b>{totals.assists}</b></div>
